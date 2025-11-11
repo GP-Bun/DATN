@@ -26,4 +26,8 @@
 ### 🔄 Luôn cập nhật nhánh `develop` trước khi code
 ```bash
 git checkout develop
-git pull origin develop -->
+git pull origin develop 
+sử dụng hai tài khoản trên máy
+git config user.name "Tên Người Dùng"
+git config user.email "email@example.com"
+-->
