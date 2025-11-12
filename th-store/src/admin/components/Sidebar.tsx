@@ -1,3 +1,4 @@
+// src/admin/components/Sidebar.tsx
 import { NavLink } from "react-router-dom";
 
 const Sidebar = () => {
