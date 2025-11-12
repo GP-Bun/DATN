@@ -1,10 +1,15 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import './style.css'
+// src/main.tsx
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import AppLayout from './ui/AppLayout'
-import AdminLayout from './admin/AdminLayout'
+import './style.css';
+
+// Layouts
+import AppLayout from './ui/AppLayout';
+import AdminLayout from './admin/AdminLayout';
+
+// Pages User
 import { 
   HomePage, 
   ProductsPage, 
@@ -12,19 +17,25 @@ import {
   CartPage, 
   CheckoutPage, 
   LoginPage, 
-  RegisterPage,
-  OrderTrackingPage
-} from './pages'
-import Dashboard from './admin/pages/Dashboard'
-import AdminProducts from './admin/pages/Products'
-import AdminOrders from './admin/pages/Orders'
-import AdminUsers from './admin/pages/Users'
-import AdminLogin from './admin/pages/Login'
-import { CartProvider } from './store/CartContext'
-import { FavoritesProvider } from './store/FavoritesContext'
-import { AuthProvider } from './store/AuthContext'
+  RegisterPage 
+} from './pages';
+import TestApiPage from './pages/TestApi';
+
+// Pages Admin
+import Dashboard from './admin/pages/Dashboard';
+import AdminProducts from './admin/pages/Products';
+import AdminOrders from './admin/pages/Orders';
+import AdminUsers from './admin/pages/Users';
+import AdminLogin from './admin/pages/Login';
+import AdminRegister from './admin/pages/Register';
+
+// Contexts
+import { CartProvider } from './store/CartContext';
+import { AuthProvider } from './store/AuthContext';
+import AdminRoute from './admin/AdminRoute';
 
 const router = createBrowserRouter([
+  // User routes
   {
     path: '/',
     element: <AppLayout />,
@@ -34,36 +45,46 @@ const router = createBrowserRouter([
       { path: 'san-pham/:id', element: <ProductDetailPage /> },
       { path: 'gio-hang', element: <CartPage /> },
       { path: 'thanh-toan', element: <CheckoutPage /> },
-      { path: 'theo-doi-don', element: <OrderTrackingPage /> },
       { path: 'dang-nhap', element: <LoginPage /> },
       { path: 'dang-ky', element: <RegisterPage /> },
+      { path: 'test-api', element: <TestApiPage /> },
     ],
   },
+
+  // Admin routes
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
     children: [
-      { index: true, element: <Dashboard /> },
+      { path: 'dashboard', element: <Dashboard /> }, // /admin/dashboard
       { path: 'products', element: <AdminProducts /> },
       { path: 'orders', element: <AdminOrders /> },
       { path: 'users', element: <AdminUsers /> },
     ],
   },
+
+  // Admin auth routes (login/register)
   {
     path: '/admin/login',
     element: <AdminLogin />,
   },
-])
+  {
+    path: '/admin/register',
+    element: <AdminRegister />,
+  },
+]);
 
-const rootElement = document.getElementById('root')!
+const rootElement = document.getElementById('root')!;
 createRoot(rootElement).render(
   <React.StrictMode>
     <AuthProvider>
       <CartProvider>
-        <FavoritesProvider>
-          <RouterProvider router={router} />
-        </FavoritesProvider>
+        <RouterProvider router={router} />
       </CartProvider>
     </AuthProvider>
   </React.StrictMode>
-)
+);

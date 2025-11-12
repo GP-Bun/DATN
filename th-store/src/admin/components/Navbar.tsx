@@ -1,11 +1,15 @@
-import { useNavigate } from 'react-router-dom'
+// src/admin/components/Navbar.tsx
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../store/AuthContext';
 
 const Navbar = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const { logoutAdmin } = useAuth();
 
   const handleLogout = () => {
-    navigate('/admin/login')
-  }
+    logoutAdmin();
+    navigate('/admin/login');
+  };
 
   return (
     <div className="admin-navbar">
@@ -20,8 +24,7 @@ const Navbar = () => {
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Navbar
-  
+export default Navbar;

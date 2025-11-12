@@ -33,7 +33,6 @@ export default function CartPage() {
                 <span>{item.quantity}</span>
                 <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</button>
               </div>
-              <p style={{margin:0,color:'#6b7280'}}>Tạm tính: {(item.price*item.quantity).toLocaleString('vi-VN')}đ</p>
               <button className="remove-btn" onClick={() => removeFromCart(item.id)}>
                 Xóa
               </button>
