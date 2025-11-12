@@ -1,13 +1,15 @@
+// src/admin/AdminLayout.tsx
+import React from "react";
 import Sidebar from "./components/Sidebar";
-import Navbar from "./components/Navbar";
+import Navbartsx from "./components/Navbar.tsx";
 import { Outlet } from "react-router-dom";
 
-const AdminLayout = () => {
+const AdminLayout: React.FC = () => {
   return (
-    <div className="admin-container">
+    <div className="admin-layout">
       <Sidebar />
       <div className="admin-main">
-        <Navbar />
+        <Navbartsx />
         <div className="admin-content">
           <Outlet />
         </div>
