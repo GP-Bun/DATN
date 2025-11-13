@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\CouponController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,3 +21,6 @@ Route::get('/', function () {
 
 // Quản lý đơn hàng 
 Route::resource('orders', OrderController::class)->only(['index', 'show', 'update', 'destroy']);
+
+// Quản lý mã giảm giá
+Route::resource('coupons', CouponController::class)->only(['index', 'create', 'store', 'destroy']);
