@@ -60,3 +60,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
         return response()->json(['admin' => $request->user()]);
     });
 });
+
+use App\Http\Controllers\Api\CouponController as ApiCouponController;
+
+// API áp dụng mã giảm giá
+Route::post('/coupons/apply', [ApiCouponController::class, 'apply']);
