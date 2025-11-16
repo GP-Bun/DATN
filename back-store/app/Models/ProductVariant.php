@@ -20,6 +20,7 @@ class ProductVariant extends Model
         'status',
     ];
 
+    // Quan hệ với Product
     public function product()
     {
         return $this->belongsTo(Product::class);

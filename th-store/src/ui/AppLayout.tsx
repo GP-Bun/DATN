@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 
 export default function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, logoutUser } = useAuth()
   return (
     <div className="app-container">
       <header className="header">
@@ -15,7 +15,15 @@ export default function AppLayout() {
           <NavLink to="/gio-hang">Giỏ hàng</NavLink>
           <NavLink to="/thanh-toan">Thanh toán</NavLink>
           {user ? (
-            <button onClick={logout}>Đăng xuất ({user.name})</button>
+            <button
+              onClick={async () => {
+                await logoutUser()
+                alert('Đăng xuất thành công!')
+              }}
+              
+            >
+              Đăng xuất ({user.name})
+            </button>
           ) : (
             <>
               <NavLink to="/dang-nhap">Đăng nhập</NavLink>

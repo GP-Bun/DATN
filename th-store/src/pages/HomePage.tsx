@@ -47,58 +47,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="categories-section">
-        <div className="section-header">
-          <h2 className="section-title">Danh mục nổi bật</h2>
-          <p className="section-subtitle">Khám phá theo nhu cầu của bạn</p>
-        </div>
-        <div className="categories-grid">
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=400&fit=crop" alt="Sneaker" />
-            <div className="category-overlay">
-              <h3>Sneaker</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&h=400&fit=crop" alt="Bóng đá" />
-            <div className="category-overlay">
-              <h3>Bóng đá</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&h=400&fit=crop" alt="Chạy bộ" />
-            <div className="category-overlay">
-              <h3>Chạy bộ</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&h=400&fit=crop" alt="Cổ cao" />
-            <div className="category-overlay">
-              <h3>Cổ cao</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=600&h=400&fit=crop" alt="Lifestyle" />
-            <div className="category-overlay">
-              <h3>Lifestyle</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-          <Link to="/san-pham" className="category-card">
-            <img src="https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=600&h=400&fit=crop" alt="Thể thao" />
-            <div className="category-overlay">
-              <h3>Thể thao</h3>
-              <span>Xem ngay →</span>
-            </div>
-          </Link>
-        </div>
-      </section>
-
       {/* Featured Products */}
       <section className="featured-products">
         <div className="section-header">
@@ -108,14 +56,14 @@ export default function HomePage() {
         <div className="products-grid">
           <div className="product-card">
             <div className="product-image">
-              <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop" alt="Giày Sneaker TH Runner" />
+              <img src="https://bizweb.dktcdn.net/100/479/837/files/giay-sneaker-catsofa-loang-mau-hong-6.jpg?v=1683452738991" alt="Áo thun nam" />
               <div className="product-overlay">
                 <Link to="/san-pham/1" className="quick-view-btn">👁️ Xem nhanh</Link>
               </div>
             </div>
             <div className="product-info">
-              <h3>Giày Sneaker TH Runner</h3>
-              <p className="product-price">1.299.000đ</p>
+              <h3>Giày</h3>
+              <p className="product-price">299.000đ</p>
               <div className="product-rating">
                 <span>⭐⭐⭐⭐⭐</span>
                 <span>(128 đánh giá)</span>
@@ -126,14 +74,14 @@ export default function HomePage() {
           
           <div className="product-card">
             <div className="product-image">
-              <img src="https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=400&fit=crop" alt="Giày Thể Thao TH Sport" />
+              <img src="https://img.lovepik.com/element/40144/8398.png_1200.png" alt="Quần jean nữ" />
               <div className="product-overlay">
                 <Link to="/san-pham/2" className="quick-view-btn">👁️ Xem nhanh</Link>
               </div>
             </div>
             <div className="product-info">
-              <h3>Giày Thể Thao TH Sport</h3>
-              <p className="product-price">1.599.000đ</p>
+              <h3>Quần jean nữ</h3>
+              <p className="product-price">599.000đ</p>
               <div className="product-rating">
                 <span>⭐⭐⭐⭐⭐</span>
                 <span>(95 đánh giá)</span>
@@ -144,14 +92,14 @@ export default function HomePage() {
           
           <div className="product-card">
             <div className="product-image">
-              <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&h=400&fit=crop" alt="Giày Chạy Bộ TH Run" />
+              <img src="https://png.pngtree.com/png-vector/20230501/ourlarge/pngtree-a-pair-of-sneakers-png-image_7078507.png" alt="Giày thể thao" />
               <div className="product-overlay">
                 <Link to="/san-pham/3" className="quick-view-btn">👁️ Xem nhanh</Link>
               </div>
             </div>
             <div className="product-info">
-              <h3>Giày Chạy Bộ TH Run</h3>
-              <p className="product-price">1.399.000đ</p>
+              <h3>Giày thể thao</h3>
+              <p className="product-price">1.299.000đ</p>
               <div className="product-rating">
                 <span>⭐⭐⭐⭐⭐</span>
                 <span>(203 đánh giá)</span>
