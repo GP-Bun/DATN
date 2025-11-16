@@ -17,3 +17,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+use App\Http\Controllers\Api\CouponController as ApiCouponController;
+
+// API áp dụng mã giảm giá
+Route::post('/coupons/apply', [ApiCouponController::class, 'apply']);

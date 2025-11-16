@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Admin Panel')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         /* Sidebar */
         .sidebar {
@@ -81,6 +82,7 @@
     </style>
 </head>
 <body>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <h4>Admin Panel</h4>
@@ -91,6 +93,7 @@
 
     <!-- Main content -->
     <div class="main-content">
+
         <!-- Page Header -->
         <div class="page-header">
             <h1 class="page-title">@yield('page-title', 'Trang quản trị')</h1>
@@ -114,6 +117,7 @@
 
         <!-- Content -->
         @yield('content')
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
