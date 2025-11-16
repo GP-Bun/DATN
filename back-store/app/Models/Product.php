@@ -20,11 +20,13 @@ class Product extends Model
         'status',
     ];
 
+    // Quan hệ với Category
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
+    // Quan hệ với ProductVariant
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);

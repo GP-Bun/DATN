@@ -1,39 +1,42 @@
 @extends('layouts.app')
 
+@section('title', 'Danh sách danh mục')
+
 @section('content')
 <div class="bg-white p-4 rounded shadow-sm">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4>Danh sách danh mục</h4>
-        <a href="{{ route('categories.create') }}" class="btn btn-primary">+ Thêm danh mục</a>
+        <h4 class="mb-0">Danh sách danh mục</h4>
+        <a href="{{ route('admin.categories.create') }}" class="btn btn-success">+ Thêm mới</a>
     </div>
 
+    {{-- Hiển thị thông báo thành công --}}
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    <table class="table table-bordered table-hover align-middle">
-        <thead class="table-dark">
-            <tr class="text-center">
+    <table class="table table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
                 <th width="5%">#</th>
                 <th>Tên danh mục</th>
                 <th>Slug</th>
                 <th>Mô tả</th>
-                <th width="20%">Hành động</th>
+                <th width="15%">Hành động</th>
             </tr>
         </thead>
         <tbody>
-            @forelse ($categories as $index => $category)
+            @forelse($categories as $key => $category)
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td>{{ $key + 1 }}</td>
                     <td>{{ $category->name }}</td>
                     <td>{{ $category->slug }}</td>
-                    <td>{{ $category->description }}</td>
-                    <td class="text-center">
-                        <a href="{{ route('categories.edit', $category->id) }}" class="btn btn-warning btn-sm">Sửa</a>
-                        <form action="{{ route('categories.destroy', $category->id) }}" method="POST" class="d-inline">
+                    <td>{{ $category->description ?? '—' }}</td>
+                    <td>
+                        <a href="{{ route('admin.categories.edit', $category->id) }}" class="btn btn-sm btn-warning">Sửa</a>
+                        <form action="{{ route('admin.categories.destroy', $category->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này không?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Xóa danh mục này?')">Xóa</button>
+                            <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
                         </form>
                     </td>
                 </tr>

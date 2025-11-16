@@ -15,8 +15,6 @@ export default function CheckoutPage() {
     city: '',
     paymentMethod: 'cod'
   })
-  const [bankInfo, setBankInfo] = useState({ bankName: '', accountNumber: '', accountName: '' })
-  const [cardInfo, setCardInfo] = useState({ cardNumber: '', cardName: '', expiry: '', cvv: '' })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,24 +88,6 @@ export default function CheckoutPage() {
             <option value="bank">Chuyển khoản ngân hàng</option>
             <option value="card">Thẻ tín dụng</option>
           </select>
-
-          {formData.paymentMethod === 'bank' && (
-            <div style={{display:'grid',gap:'10px'}}>
-              <input placeholder="Ngân hàng" value={bankInfo.bankName} onChange={e=>setBankInfo({...bankInfo, bankName: e.target.value})} />
-              <input placeholder="Số tài khoản" value={bankInfo.accountNumber} onChange={e=>setBankInfo({...bankInfo, accountNumber: e.target.value})} />
-              <input placeholder="Tên chủ tài khoản" value={bankInfo.accountName} onChange={e=>setBankInfo({...bankInfo, accountName: e.target.value})} />
-            </div>
-          )}
-          {formData.paymentMethod === 'card' && (
-            <div style={{display:'grid',gap:'10px'}}>
-              <input placeholder="Số thẻ" value={cardInfo.cardNumber} onChange={e=>setCardInfo({...cardInfo, cardNumber: e.target.value})} />
-              <input placeholder="Tên chủ thẻ" value={cardInfo.cardName} onChange={e=>setCardInfo({...cardInfo, cardName: e.target.value})} />
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                <input placeholder="MM/YY" value={cardInfo.expiry} onChange={e=>setCardInfo({...cardInfo, expiry: e.target.value})} />
-                <input placeholder="CVV" value={cardInfo.cvv} onChange={e=>setCardInfo({...cardInfo, cvv: e.target.value})} />
-              </div>
-            </div>
-          )}
           
           <button type="submit">Đặt hàng</button>
         </form>
@@ -127,7 +107,6 @@ export default function CheckoutPage() {
           ))}
           <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
             <h3>Tổng cộng: {getTotalPrice().toLocaleString('vi-VN')}đ</h3>
-            <p style={{color:'#6b7280'}}>Phí vận chuyển sẽ được tính ở bước tiếp theo.</p>
           </div>
         </div>
       </div>
