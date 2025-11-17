@@ -1,77 +1,85 @@
 @extends('layouts.app')
 
+@section('page-title', 'Danh sách sản phẩm')
+
 @section('content')
-<div class="bg-white p-4 rounded shadow-sm">
-    <div class="d-flex justify-content-between mb-3">
-        <h4>Danh sách sản phẩm</h4>
-        <a href="{{ route('products.create') }}" class="btn btn-primary">+ Thêm sản phẩm</a>
-    </div>
+<div class="d-flex justify-content-between mb-3">
+    <h2>Danh sách sản phẩm</h2>
+    <a href="{{ route('admin.products.create') }}" class="btn btn-primary">
+        <i class="bi bi-plus"></i> Thêm sản phẩm
+    </a>
+</div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
+{{-- Thông báo thành công --}}
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
 
-    <table class="table table-bordered table-hover align-middle">
-        <thead class="table-dark">
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>#</th>
+            <th>Tên sản phẩm</th>
+            <th>Danh mục</th>
+            <th>Giá</th>
+            <th>Trạng thái</th>
+            <th>Hình ảnh</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        @forelse($products as $product)
             <tr>
-                <th>#</th>
-                <th>Ảnh</th>
-                <th>Tên sản phẩm</th>
-                <th>Danh mục</th>
-                <th>Giá</th>
-                <th>Trạng thái</th>
-                <th>Biến thể</th>
-                <th>Hành động</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($products as $index => $p)
-            <tr>
-                <td>{{ $index + 1 }}</td>
+                <td>{{ $product->id }}</td>
+                <td>{{ $product->name }}</td>
+                <td>{{ $product->category->name ?? '-' }}</td>
+                <td>{{ number_format($product->price, 0, ',', '.') }}₫</td>
+                <td>{{ $product->status }}</td>
                 <td>
-                    @if($p->image)
-                        <img src="{{ asset('storage/' . $p->image) }}" alt="{{ $p->name }}" width="80" class="img-thumbnail">
+                    @if($product->image)
+                        <img src="{{ asset('storage/'.$product->image) }}" alt="Ảnh" width="80" class="img-thumbnail">
                     @else
                         —
                     @endif
                 </td>
-                <td>{{ $p->name }}</td>
-                <td>{{ $p->category->name ?? '—' }}</td>
-                <td>{{ number_format($p->price, 0, ',', '.') }}₫</td>
-                <td>{{ $p->status }}</td>
                 <td>
-                    @if($p->variants->count())
-                        <ul class="list-unstyled mb-0">
-                            @foreach($p->variants as $v)
-                                <li>
-                                    <strong>{{ $v->color }}/{{ $v->size }}</strong> - 
-                                    {{ number_format($v->price,0,',','.') }}₫, 
-                                    Stock: {{ $v->stock }}
-                                    <form action="{{ route('variants.destroy', $v->id) }}" method="POST" class="d-inline">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-danger" onclick="return confirm('Xóa biến thể này?')">Xóa</button>
-                                    </form>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <span class="text-muted">Chưa có biến thể</span>
-                    @endif
-                </td>
-                <td>
-                    <a href="{{ route('products.edit', $p->id) }}" class="btn btn-warning btn-sm mb-1">Sửa</a>
-                    <form action="{{ route('products.destroy', $p->id) }}" method="POST" class="d-inline">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-danger btn-sm" onclick="return confirm('Xóa sản phẩm này?')">Xóa</button>
+                    <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-warning btn-sm mb-1">Sửa</a>
+
+                    <form action="{{ route('admin.products.destroy', $product->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Bạn có chắc muốn xóa sản phẩm này?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
                     </form>
                 </td>
             </tr>
-            @empty
+
+            {{-- Hiển thị biến thể ngay dưới sản phẩm --}}
+            @foreach($product->variants as $variant)
+                <tr class="table-secondary">
+                    <td></td>
+                    <td colspan="2"><strong>Biến thể:</strong> {{ $variant->color }} / {{ $variant->size }}</td>
+                    <td>{{ number_format($variant->price, 0, ',', '.') }}₫</td>
+                    <td colspan="3">Stock: {{ $variant->stock }}
+                        <form action="{{ route('admin.variants.destroy', $variant->id) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Bạn có chắc muốn xóa biến thể này?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+            @endforeach
+        @empty
             <tr>
-                <td colspan="8" class="text-center text-muted">Chưa có sản phẩm</td>
+                <td colspan="7" class="text-center">
+                    Chưa có sản phẩm nào. <a href="{{ route('admin.products.create') }}">Thêm sản phẩm mới</a>
+                </td>
             </tr>
-            @endforelse
-        </tbody>
-    </table>
+        @endforelse
+    </tbody>
+</table>
+
+{{-- Pagination --}}
+<div class="d-flex justify-content-center mt-3">
+    {{ $products->links() }}
 </div>
 @endsection
