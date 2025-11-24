@@ -14,6 +14,7 @@ const AdminLogin = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +24,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      await loginAdmin(email, password);
+      await loginAdmin(email, password, remember); // truyền remember
       navigate('/admin/dashboard'); // Chuyển đến dashboard admin
     } catch (err: any) {
       if (err.errors) {
@@ -73,14 +74,22 @@ const AdminLogin = () => {
             {errors.password && <div className="form-error">{errors.password}</div>}
           </div>
 
+          <div className="form-group">
+            {/* <label>
+              <input 
+                type="checkbox" 
+                checked={remember} 
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Nhớ đăng nhập
+            </label> */}
+          </div>
+          
+
           <button type="submit" className="admin-login-btn" disabled={isLoading}>
             {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
-
-        {/* <p>
-          Chưa có tài khoản? <a href="/admin/register">Đăng ký ngay</a>
-        </p> */}
       </div>
     </div>
   );

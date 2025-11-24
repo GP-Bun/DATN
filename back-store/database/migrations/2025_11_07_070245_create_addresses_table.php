@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Tạm tắt foreign key check để tránh lỗi 1824
+        Schema::disableForeignKeyConstraints();
+
         Schema::create('addresses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
@@ -21,6 +24,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
+
+        // Bật lại foreign key check
+        Schema::enableForeignKeyConstraints();
     }
 
     public function down(): void

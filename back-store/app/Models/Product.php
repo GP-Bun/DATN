@@ -11,24 +11,18 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'category_id',
-        'name',
-        'slug',
-        'description',
-        'price',
-        'image',
-        'status',
+        'name','slug','description','price','status','category_id','thumbnail','images'
     ];
 
-    // Quan hệ với Category
-    public function category()
-    {
+    protected $casts = [
+        'images' => 'array',
+    ];
+
+    public function category(){
         return $this->belongsTo(Category::class);
     }
 
-    // Quan hệ với ProductVariant
-    public function variants()
-    {
+    public function variants(){
         return $this->hasMany(ProductVariant::class);
     }
 }

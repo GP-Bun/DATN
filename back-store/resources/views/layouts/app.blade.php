@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - @yield('title', 'Admin Panel')</title>
 
@@ -28,13 +30,15 @@
             padding-top: 25px;
             display: flex;
             flex-direction: column;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
             transition: all 0.3s;
             z-index: 1000;
         }
+
         .sidebar.hidden {
             left: -250px;
         }
+
         .sidebar h4 {
             font-size: 18px;
             font-weight: 600;
@@ -42,6 +46,7 @@
             margin-bottom: 20px;
             color: #f1f5f9;
         }
+
         .sidebar a {
             color: #cbd5e1;
             display: flex;
@@ -54,6 +59,7 @@
             transition: 0.2s;
             white-space: nowrap;
         }
+
         .sidebar a:hover,
         .sidebar a.active {
             background-color: #334155;
@@ -67,6 +73,7 @@
             transition: all 0.3s;
             min-height: 100vh;
         }
+
         .main-content.full-width {
             margin-left: 0;
         }
@@ -76,6 +83,7 @@
             background-color: #0f172a;
             border-radius: 8px;
         }
+
         .navbar .navbar-brand {
             color: #f8fafc !important;
             font-weight: 500;
@@ -92,6 +100,7 @@
                 position: fixed;
                 height: 100%;
             }
+
             .main-content {
                 margin-left: 0;
             }
@@ -103,14 +112,27 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <h4>🛍️ Admin Panel</h4>
-        <a href="{{ route('admin.categories.index') }}" class="{{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.categories.index') }}"
+            class="{{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
             <i class="bi bi-folder"></i> Danh mục
         </a>
-        <a href="{{ route('admin.products.index') }}" class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.products.index') }}"
+            class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
             <i class="bi bi-box"></i> Sản phẩm
         </a>
-        <a href="#" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
             <i class="bi bi-people"></i> Người dùng
+        </a>
+
+        <!-- Thêm quản lý tài khoản -->
+        <a href="{{ route('admin.accounts.index') }}"
+            class="{{ request()->routeIs('admin.accounts.*') ? 'active' : '' }}">
+            <i class="bi bi-person-badge"></i> Tài khoản
+        </a>
+
+        <!-- Thêm quản lý đơn hàng -->
+        <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
+            <i class="bi bi-cart-check"></i> Đơn hàng
         </a>
     </div>
 
@@ -154,4 +176,5 @@
     </script>
     @yield('scripts')
 </body>
+
 </html>

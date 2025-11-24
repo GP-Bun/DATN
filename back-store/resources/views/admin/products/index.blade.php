@@ -1,85 +1,88 @@
 @extends('layouts.app')
 
-@section('page-title', 'Danh sách sản phẩm')
+@section('title', 'Quản lý sản phẩm')
 
 @section('content')
-<div class="d-flex justify-content-between mb-3">
-    <h2>Danh sách sản phẩm</h2>
-    <a href="{{ route('admin.products.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus"></i> Thêm sản phẩm
-    </a>
-</div>
+<div class="bg-white p-4 rounded shadow-sm">
+    <h4 class="mb-3">Danh sách sản phẩm</h4>
 
-{{-- Thông báo thành công --}}
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
 
-<table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>#</th>
-            <th>Tên sản phẩm</th>
-            <th>Danh mục</th>
-            <th>Giá</th>
-            <th>Trạng thái</th>
-            <th>Hình ảnh</th>
-            <th>Hành động</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($products as $product)
-            <tr>
-                <td>{{ $product->id }}</td>
-                <td>{{ $product->name }}</td>
-                <td>{{ $product->category->name ?? '-' }}</td>
-                <td>{{ number_format($product->price, 0, ',', '.') }}₫</td>
-                <td>{{ $product->status }}</td>
-                <td>
-                    @if($product->image)
-                        <img src="{{ asset('storage/'.$product->image) }}" alt="Ảnh" width="80" class="img-thumbnail">
-                    @else
-                        —
-                    @endif
-                </td>
-                <td>
-                    <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-warning btn-sm mb-1">Sửa</a>
+    <a href="{{ route('admin.products.create') }}" class="btn btn-primary mb-3">Thêm sản phẩm</a>
 
-                    <form action="{{ route('admin.products.destroy', $product->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Bạn có chắc muốn xóa sản phẩm này?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
-                    </form>
-                </td>
-            </tr>
-
-            {{-- Hiển thị biến thể ngay dưới sản phẩm --}}
-            @foreach($product->variants as $variant)
-                <tr class="table-secondary">
-                    <td></td>
-                    <td colspan="2"><strong>Biến thể:</strong> {{ $variant->color }} / {{ $variant->size }}</td>
-                    <td>{{ number_format($variant->price, 0, ',', '.') }}₫</td>
-                    <td colspan="3">Stock: {{ $variant->stock }}
-                        <form action="{{ route('admin.variants.destroy', $variant->id) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Bạn có chắc muốn xóa biến thể này?');">
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>#ID</th>
+                    <th>Tên sản phẩm</th>
+                    <th>Danh mục</th>
+                    <th>Giá</th>
+                    <th>Trạng thái</th>
+                    <th>Ảnh</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($products as $p)
+                <tr>
+                    <td>{{ $p->id }}</td>
+                    <td>{{ $p->name }}</td>
+                    <td>{{ $p->category?->name ?? 'Không' }}</td>
+                    <td>{{ number_format($p->price,0,',','.') }}₫</td>
+                    <td>
+                        @php
+                            $statusColors = [
+                                'ACTIVE'=>'success',
+                                'INACTIVE'=>'secondary',
+                                'OUT_OF_STOCK'=>'danger',
+                            ];
+                        @endphp
+                        <span class="badge bg-{{ $statusColors[$p->status] ?? 'secondary' }}">{{ $p->status }}</span>
+                    </td>
+                    <td>
+                        @if($p->image)
+                        <img src="{{ asset('storage/'.$p->image) }}" alt="{{ $p->name }}" width="50">
+                        @endif
+                    </td>
+                    <td>
+                        <a href="{{ route('admin.products.edit', $p->id) }}" class="btn btn-sm btn-warning">Sửa</a>
+                        <form action="{{ route('admin.products.destroy', $p->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Xóa sản phẩm?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+                            <button class="btn btn-sm btn-danger">Xóa</button>
                         </form>
                     </td>
                 </tr>
-            @endforeach
-        @empty
-            <tr>
-                <td colspan="7" class="text-center">
-                    Chưa có sản phẩm nào. <a href="{{ route('admin.products.create') }}">Thêm sản phẩm mới</a>
-                </td>
-            </tr>
-        @endforelse
-    </tbody>
-</table>
+                {{-- Variants --}}
+                @foreach($p->variants as $variant)
+                <tr class="table-light">
+                    <td></td>
+                    <td colspan="2"><strong>Biến thể:</strong> {{ $variant->color }} / {{ $variant->size }}</td>
+                    <td>{{ number_format($variant->price,0,',','.') }}₫</td>
+                    <td colspan="3">
+                        Số lượng: {{ $variant->stock }}
+                        <form action="{{ route('admin.products.variants.destroy', [$p->id, $variant->id]) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Bạn có chắc muốn xóa biến thể này?');">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-sm btn-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
+                @empty
+                <tr>
+                    <td colspan="7" class="text-center">Chưa có sản phẩm nào.</td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
-{{-- Pagination --}}
-<div class="d-flex justify-content-center mt-3">
-    {{ $products->links() }}
+    <div class="d-flex justify-content-center mt-3">
+        {{ $products->links() }}
+    </div>
 </div>
 @endsection

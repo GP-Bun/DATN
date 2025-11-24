@@ -11,9 +11,6 @@ use Illuminate\Database\Seeder;
 
 class OrderSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         // Tạo 5 users trước
@@ -24,17 +21,19 @@ class OrderSeeder extends Seeder
             // Tạo địa chỉ cho user
             $address = Address::create([
                 'user_id' => $user->id,
-                'address' => '123 Nguyễn Huệ, Q.1',
+                'receiver_name' => $user->name,
+                'receiver_phone' => '0123456789',
+                'line1' => '123 Nguyễn Huệ, Q.1',
                 'city' => 'Hồ Chí Minh',
-                'postal_code' => '70000',
-                'country' => 'Vietnam',
+                'province' => 'TP.HCM',
+                'zip' => '70000',
+                'is_default' => true,
             ]);
 
             // Tạo 3 đơn hàng cho user này
             for ($i = 1; $i <= 3; $i++) {
                 $itemsTotal = 0;
-                
-                // Tạo đơn hàng
+
                 $order = Order::create([
                     'user_id' => $user->id,
                     'address_id' => $address->id,
@@ -42,7 +41,7 @@ class OrderSeeder extends Seeder
                     'payment_status' => ['unpaid', 'paid', 'paid'][$i - 1],
                     'shipping_cost' => 50000,
                     'discount_amount' => $i == 1 ? 0 : 100000 * $i,
-                    'final_amount' => 0, // Tạm tính, sẽ cập nhật sau
+                    'final_amount' => 0, // Tạm tính
                     'notes' => "Ghi chú cho đơn hàng thứ {$i}",
                 ]);
 
@@ -51,14 +50,14 @@ class OrderSeeder extends Seeder
                 for ($j = 1; $j <= $itemCount; $j++) {
                     $price = 100000 + ($j * 50000);
                     $quantity = rand(1, 3);
-                    
+
                     $item = OrderItem::create([
                         'order_id' => $order->id,
                         'product_name' => "Sản phẩm {$j}",
                         'quantity' => $quantity,
                         'price' => $price,
                     ]);
-                    
+
                     $itemsTotal += $price * $quantity;
                 }
 
@@ -67,7 +66,7 @@ class OrderSeeder extends Seeder
                     'final_amount' => $itemsTotal + $order->shipping_cost - $order->discount_amount,
                 ]);
 
-                // Tạo 1-2 payments cho đơn hàng
+                // Tạo 1-2 payments nếu đã thanh toán
                 $paymentCount = $order->payment_status === 'paid' ? rand(1, 2) : 0;
                 for ($p = 1; $p <= $paymentCount; $p++) {
                     Payment::create([

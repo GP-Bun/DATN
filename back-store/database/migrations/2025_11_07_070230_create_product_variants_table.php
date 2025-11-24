@@ -13,10 +13,10 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
             $table->string('color')->nullable();
             $table->string('size')->nullable();
+            $table->decimal('original_price',15,2);
+            $table->decimal('sale_price',15,2)->nullable();
             $table->integer('stock')->default(0);
-            $table->decimal('price', 15, 2)->nullable();
-            $table->string('image')->nullable();
-            $table->string('status')->default('active');
+            $table->tinyInteger('status')->default(1);
             $table->timestamps();
             $table->softDeletes();
         });
