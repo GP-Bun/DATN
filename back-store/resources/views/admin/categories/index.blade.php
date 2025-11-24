@@ -9,7 +9,6 @@
         <a href="{{ route('admin.categories.create') }}" class="btn btn-success">+ Thêm mới</a>
     </div>
 
-    {{-- Hiển thị thông báo thành công --}}
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif

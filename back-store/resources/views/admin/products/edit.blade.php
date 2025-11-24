@@ -4,132 +4,217 @@
 
 @section('content')
 <div class="bg-white p-4 rounded shadow-sm">
-    <h4 class="mb-3">Sửa sản phẩm: {{ $product->name }}</h4>
+    <h4 class="mb-3">Sửa sản phẩm</h4>
+
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
 
     <form action="{{ route('admin.products.update', $product->id) }}" method="POST" enctype="multipart/form-data">
         @csrf
         @method('PUT')
 
-        @php
-            $sizes = ['36','37','38','39','40','41','42','43','44'];
-            $colors = ['Đen','Trắng','Đỏ','Xanh'];
-        @endphp
-
+        {{-- Tên sản phẩm --}}
         <div class="mb-3">
             <label class="form-label">Tên sản phẩm</label>
             <input type="text" name="name" class="form-control" value="{{ old('name', $product->name) }}" required>
+            @error('name') <small class="text-danger">{{ $message }}</small> @enderror
         </div>
 
+        {{-- Danh mục --}}
         <div class="mb-3">
             <label class="form-label">Danh mục</label>
             <select name="category_id" class="form-select" required>
+                <option value="">-- Chọn danh mục --</option>
                 @foreach($categories as $cate)
                     <option value="{{ $cate->id }}" {{ old('category_id', $product->category_id) == $cate->id ? 'selected' : '' }}>
                         {{ $cate->name }}
                     </option>
                 @endforeach
             </select>
+            @error('category_id') <small class="text-danger">{{ $message }}</small> @enderror
         </div>
 
+        {{-- Mô tả --}}
         <div class="mb-3">
-            <label class="form-label">Giá cơ bản</label>
-            <input type="number" name="price" class="form-control" value="{{ old('price', $product->price) }}" min="0" required>
+            <label class="form-label">Mô tả</label>
+            <textarea name="description" class="form-control" rows="3">{{ old('description', $product->description) }}</textarea>
         </div>
 
+        {{-- Ảnh đại diện --}}
         <div class="mb-3">
-            <label class="form-label">Trạng thái</label>
-            <select name="status" class="form-select" required>
-                <option value="ACTIVE" {{ old('status', $product->status)=='ACTIVE' ? 'selected' : '' }}>Hoạt động</option>
-                <option value="INACTIVE" {{ old('status', $product->status)=='INACTIVE' ? 'selected' : '' }}>Ngừng kinh doanh</option>
-                <option value="OUT_OF_STOCK" {{ old('status', $product->status)=='OUT_OF_STOCK' ? 'selected' : '' }}>Hết hàng</option>
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Ảnh sản phẩm</label><br>
-            @if($product->image)
-                <img src="{{ asset('storage/'.$product->image) }}" alt="Ảnh sản phẩm" class="mb-2" style="max-width:150px;">
+            <label class="form-label">Ảnh đại diện</label>
+            <input type="file" name="thumbnail" class="form-control">
+            @if($product->thumbnail)
+                <img id="preview-thumbnail" src="{{ asset('storage/'.$product->thumbnail) }}" class="mt-2" style="width:120px;">
+            @else
+                <img id="preview-thumbnail" src="" class="mt-2" style="width:120px; display:none;">
             @endif
-            <input type="file" name="image" class="form-control">
+            @error('thumbnail') <small class="text-danger">{{ $message }}</small> @enderror
         </div>
 
-        <hr class="my-4">
+        {{-- Ảnh bổ sung --}}
+        <div class="mb-3">
+            <label class="form-label">Ảnh bổ sung</label>
+            <input type="file" name="images[]" multiple class="form-control">
+            <div id="preview-images" class="d-flex mt-2" style="gap:10px;">
+                @if($product->images)
+                    @php
+                        $images = is_array($product->images) ? $product->images : json_decode($product->images, true);
+                    @endphp
+                    @foreach($images as $img)
+                        <img src="{{ asset('storage/'.$img) }}" class="rounded" style="width:80px; height:80px; object-fit:cover;">
+                    @endforeach
+                @endif
+            </div>
+            @error('images.*') <small class="text-danger">{{ $message }}</small> @enderror
+        </div>
+
+        <hr>
+
         <h5>Biến thể sản phẩm</h5>
+        <p class="text-muted">Mỗi màu có thể chọn nhiều size → Hệ thống sẽ tạo ra từng biến thể con</p>
+
+        @php
+            $sizes = ['36','37','38','39','40','41','42','43','44'];
+            $variants = old('variants', $product->variants ? $product->variants->toArray() : []);
+        @endphp
+
         <div id="variants-wrapper">
-            @foreach($product->variants as $i => $variant)
-                <div class="variant-row row g-2 mb-2 align-items-end border p-2 rounded">
+            @if($variants)
+                @foreach($variants as $index => $variant)
+                <div class="variant-row row g-2 mb-3 p-3 border rounded">
                     <div class="col-md-2">
-                        <select name="variants[{{ $i }}][color]" class="form-select" required>
-                            @foreach($colors as $c)
-                                <option value="{{ $c }}" {{ old("variants.$i.color", $variant->color) == $c ? 'selected' : '' }}>{{ $c }}</option>
+                        <label>Màu</label>
+                        <input type="text" name="variants[{{ $index }}][color]" class="form-control" value="{{ $variant['color'] ?? '' }}" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Size</label>
+                        <div class="d-flex flex-wrap">
+                            @foreach($sizes as $size)
+                                <div class="form-check me-2">
+                                    <input type="checkbox" class="form-check-input"
+                                           name="variants[{{ $index }}][sizes][]"
+                                           id="v{{ $index }}_size{{ $size }}"
+                                           value="{{ $size }}"
+                                           {{ in_array($size, $variant['sizes'] ?? []) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="v{{ $index }}_size{{ $size }}">{{ $size }}</label>
+                                </div>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
+
                     <div class="col-md-2">
-                        <select name="variants[{{ $i }}][size]" class="form-select" required>
-                            @foreach($sizes as $s)
-                                <option value="{{ $s }}" {{ old("variants.$i.size", $variant->size) == $s ? 'selected' : '' }}>{{ $s }}</option>
-                            @endforeach
-                        </select>
+                        <label>Giá gốc</label>
+                        <input type="number" name="variants[{{ $index }}][original_price]" class="form-control" value="{{ $variant['original_price'] ?? '' }}" required>
                     </div>
+
                     <div class="col-md-2">
-                        <input type="number" name="variants[{{ $i }}][price]" class="form-control" value="{{ old("variants.$i.price", $variant->price) }}" placeholder="Giá" required>
+                        <label>Giá giảm</label>
+                        <input type="number" name="variants[{{ $index }}][sale_price]" class="form-control" value="{{ $variant['sale_price'] ?? '' }}">
                     </div>
-                    <div class="col-md-2">
-                        <input type="number" name="variants[{{ $i }}][stock]" class="form-control" value="{{ old("variants.$i.stock", $variant->stock) }}" placeholder="Tồn kho" required>
+
+                    <div class="col-md-1">
+                        <label>Tồn kho</label>
+                        <input type="number" name="variants[{{ $index }}][stock]" class="form-control" value="{{ $variant['stock'] ?? '' }}" required>
                     </div>
-                    <div class="col-md-2">
+
+                    <div class="col-md-1 d-flex align-items-end">
                         <button type="button" class="btn btn-danger btn-remove-variant w-100">Xóa</button>
                     </div>
                 </div>
-            @endforeach
+                @endforeach
+            @endif
         </div>
 
-        <button type="button" id="add-variant" class="btn btn-primary mb-3">+ Thêm biến thể</button>
+        <button type="button" class="btn btn-primary mb-3" id="add-variant">+ Thêm màu</button>
 
-        <div>
+        <div class="mt-3">
             <button type="submit" class="btn btn-success">Cập nhật sản phẩm</button>
             <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Quay lại</a>
         </div>
     </form>
 </div>
+@endsection
 
 @section('scripts')
 <script>
-let variantIndex = {{ $product->variants->count() }};
-const wrapper = document.getElementById('variants-wrapper');
+let variantIndex = {{ count($variants) }};
 const sizes = @json($sizes);
-const colors = @json($colors);
 
-document.getElementById('add-variant').addEventListener('click', function() {
+// Preview thumbnail
+document.querySelector('input[name="thumbnail"]').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(file){
+        const img = document.getElementById('preview-thumbnail');
+        img.src = URL.createObjectURL(file);
+        img.style.display = 'block';
+    }
+});
+
+// Preview multiple images
+document.querySelector('input[name="images[]"]').addEventListener('change', function(e){
+    const box = document.getElementById('preview-images');
+    box.innerHTML = '';
+    Array.from(e.target.files).forEach(f=>{
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.style.width = "80px";
+        img.style.height = "80px";
+        img.style.objectFit = "cover";
+        img.classList.add("rounded");
+        box.appendChild(img);
+    });
+});
+
+// Add variant
+document.getElementById('add-variant').addEventListener('click', () => {
+    let htmlSizes = "";
+    sizes.forEach(size=>{
+        htmlSizes += `
+        <div class="form-check me-2">
+            <input class="form-check-input" type="checkbox"
+                   name="variants[${variantIndex}][sizes][]"
+                   id="v${variantIndex}_size${size}"
+                   value="${size}">
+            <label class="form-check-label" for="v${variantIndex}_size${size}">${size}</label>
+        </div>`;
+    });
+
     const div = document.createElement('div');
-    div.classList.add('variant-row', 'row', 'g-2', 'mb-2', 'align-items-end', 'border', 'p-2', 'rounded');
-
-    let colorOptions = colors.map(c => `<option value="${c}">${c}</option>`).join('');
-    let sizeOptions = sizes.map(s => `<option value="${s}">${s}</option>`).join('');
-
+    div.className = "variant-row row g-2 mb-3 p-3 border rounded";
     div.innerHTML = `
         <div class="col-md-2">
-            <select name="variants[${variantIndex}][color]" class="form-select" required>${colorOptions}</select>
+            <label>Màu</label>
+            <input type="text" name="variants[${variantIndex}][color]" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+            <label>Size</label>
+            <div class="d-flex flex-wrap">${htmlSizes}</div>
         </div>
         <div class="col-md-2">
-            <select name="variants[${variantIndex}][size]" class="form-select" required>${sizeOptions}</select>
+            <label>Giá gốc</label>
+            <input type="number" name="variants[${variantIndex}][original_price]" class="form-control" required>
         </div>
         <div class="col-md-2">
-            <input type="number" name="variants[${variantIndex}][price]" placeholder="Giá" class="form-control" required>
+            <label>Giá giảm</label>
+            <input type="number" name="variants[${variantIndex}][sale_price]" class="form-control">
         </div>
-        <div class="col-md-2">
-            <input type="number" name="variants[${variantIndex}][stock]" placeholder="Tồn kho" class="form-control" required>
+        <div class="col-md-1">
+            <label>Tồn kho</label>
+            <input type="number" name="variants[${variantIndex}][stock]" class="form-control" required>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-1 d-flex align-items-end">
             <button type="button" class="btn btn-danger btn-remove-variant w-100">Xóa</button>
         </div>
     `;
-    wrapper.appendChild(div);
+    document.getElementById('variants-wrapper').appendChild(div);
     variantIndex++;
 });
 
-wrapper.addEventListener('click', function(e){
+// Remove variant
+document.getElementById('variants-wrapper').addEventListener('click', function(e){
     if(e.target.classList.contains('btn-remove-variant')){
         e.target.closest('.variant-row').remove();
     }
