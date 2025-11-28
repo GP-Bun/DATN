@@ -11,26 +11,7 @@ use App\Models\Category;
 
 class ProductController extends Controller
 {
-    // ===== Tạo slug duy nhất =====
-    protected function generateUniqueSlug($name, $ignoreId = null)
-    {
-        $slug = Str::slug($name);
-        $originalSlug = $slug;
-        $counter = 1;
-
-        while (
-            Product::withTrashed()
-                ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
-                ->where('slug', $slug)
-                ->exists()
-        ) {
-            $slug = $originalSlug . '-' . $counter++;
-        }
-
-        return $slug;
-    }
-
-    // ===== DANH SÁCH SẢN PHẨM =====
+    // ===== DANH SÁCH =====
     public function index()
     {
         $products = Product::with('category')->paginate(10);
@@ -45,57 +26,67 @@ class ProductController extends Controller
     }
 
     // ===== LƯU SẢN PHẨM =====
-      public function store(Request $request){
-        // dd($request->all());
+    public function store(Request $request)
+    {
         $request->validate([
-            'name'=>'required|string|max:255',
-            'category_id'=>'required|exists:categories,id',
-            'price'=>'required|numeric|min:0',
-            'description'=>'nullable|string',
-            'thumbnail'=>'nullable|image|max:2048',  
-            'images.*'=>'nullable|image|max:2048',
-            'variants'=>'required|array',
-            'variants.*.color'=>'required|string|max:50',
-            'variants.*.sizes'=>'required|array|min:1',
-            'variants.*.original_price'=>'required|numeric|min:0',
-            'variants.*.sale_price'=>'nullable|numeric|min:0',
-            'variants.*.stock'=>'required|integer|min:0'
+            'name' => 'required|string|max:255',
+            'category_id' => 'required|exists:categories,id',
+            'status' => 'required|in:0,1,2',
+            'thumbnail' => 'required|image|max:2048',
+            'images.*' => 'nullable|image|max:2048',
+            'variants' => 'required|array|min:1',
+            'variants.*.color' => 'required|string|max:50',
+            'variants.*.sizes' => 'required|array|min:1',
+            'variants.*.original_price' => 'required|numeric|min:0',
+            'variants.*.stock' => 'required|integer|min:0',
         ]);
 
-        $thumbnail = $request->hasFile('thumbnail') ? $request->file('thumbnail')->store('products','public') : null;
+        $slug = Str::slug($request->name);
 
-        $images = [];
-        if($request->hasFile('images')){
-            foreach($request->file('images') as $img){
-                $images[] = $img->store('products','public');
+        // Kiểm tra slug đã tồn tại chưa
+        if (Product::withTrashed()->where('slug', $slug)->exists()) {
+            return back()
+                ->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])
+                ->withInput();
+        }
+
+        // xử lý thumbnail, images...
+        $thumbnailPath = $request->file('thumbnail')->store('products', 'public');
+        $imagePaths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $img) {
+                $imagePaths[] = $img->store('products', 'public');
             }
         }
 
+        $firstVariant = collect($request->variants)->first();
+
         $product = Product::create([
-            'name'=>$request->name,
-            'slug'=>$this->generateUniqueSlug($request->name),
-            'description'=>$request->description,
-            'price'=>$request->price,
-            'status'=>1,
-            'category_id'=>$request->category_id,
-            'thumbnail'=>$thumbnail,
-            'images'=>$images
+            'name' => $request->name,
+            'slug' => $slug,
+            'description' => $request->description,
+            'price' => $firstVariant['original_price'] ?? 0,
+            'status' => $request->status,
+            'category_id' => $request->category_id,
+            'thumbnail' => $thumbnailPath,
+            'images' => $imagePaths,
         ]);
 
-        foreach($request->variants as $v){
-            foreach($v['sizes'] as $size){
+        foreach ($request->variants as $variant) {
+            foreach ($variant['sizes'] as $size) {
                 ProductVariant::create([
-                    'product_id'=>$product->id,
-                    'color'=>$v['color'],
-                    'size'=>$size,
-                    'original_price'=>$v['original_price'],
-                    'sale_price'=>$v['sale_price'] ?? null,
-                    'stock'=>$v['stock']
+                    'product_id' => $product->id,
+                    'color' => $variant['color'],
+                    'size' => $size,
+                    'original_price' => $variant['original_price'],
+                    'sale_price' => $variant['sale_price'] ?? null,
+                    'stock' => $variant['stock'],
+                    'status' => 1,
                 ]);
             }
         }
 
-        return redirect()->route('admin.products.index')->with('success','Thêm sản phẩm thành công');
+        return redirect()->route('admin.products.index')->with('success', 'Thêm sản phẩm thành công!');
     }
 
 
@@ -107,72 +98,105 @@ class ProductController extends Controller
         return view('admin.products.edit', compact('product', 'categories', 'variants'));
     }
 
-    // ===== CẬP NHẬT SẢN PHẨM =====
+    // ===== CẬP NHẬT =====
     public function update(Request $request, Product $product)
     {
         $request->validate([
-            'name'        => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
-            'price'       => 'required|numeric|min:0',
-            'status'      => 'required|in:active,inactive',
             'description' => 'nullable|string',
-            'thumbnail'   => 'nullable|image|max:2048',
-            'images.*'    => 'nullable|image|max:2048',
-            'variants'    => 'required|array',
-            'variants.*.color'          => 'required|string|max:50',
-            'variants.*.sizes'          => 'required|array|min:1',
+            'status' => 'required|in:0,1,2',
+            'thumbnail' => 'nullable|image|max:2048',
+            'images.*' => 'nullable|image|max:2048',
+            'variants' => 'required|array|min:1',
+            'variants.*.color' => 'required|string|max:50',
+            'variants.*.sizes' => 'required|array|min:1',
             'variants.*.original_price' => 'required|numeric|min:0',
-            'variants.*.sale_price'     => 'nullable|numeric|min:0',
-            'variants.*.stock'          => 'required|integer|min:0',
+            'variants.*.sale_price' => 'nullable|numeric|min:0',
+            'variants.*.stock' => 'required|integer|min:0',
         ]);
 
-        // Slug mới
-        $slug = $this->generateUniqueSlug($request->name, $product->id);
-
-        // Thumbnail mới
+        // Cập nhật ảnh đại diện nếu có
         if ($request->hasFile('thumbnail')) {
             $product->thumbnail = $request->file('thumbnail')->store('products', 'public');
         }
 
-        // Thêm ảnh mới
-        $imagePaths = $product->images ?? [];
+        // Cập nhật ảnh bổ sung nếu có
         if ($request->hasFile('images')) {
+            $imagePaths = [];
             foreach ($request->file('images') as $img) {
                 $imagePaths[] = $img->store('products', 'public');
             }
+            $product->images = $imagePaths;
         }
 
-        // Cập nhật sản phẩm
+        // Lấy slug từ name
+        $slug = Str::slug($request->name);
+
+        // Kiểm tra slug đã tồn tại ở sản phẩm khác chưa
+        if (Product::where('slug', $slug)->where('id', '!=', $product->id)->exists()) {
+            return back()
+                ->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])
+                ->withInput();
+        }
+
+        // Lấy biến thể đầu tiên trong request
+        $firstVariant = collect($request->variants)->first();
+
+        // Cập nhật sản phẩm chính
         $product->update([
-            'name'        => $request->name,
-            'slug'        => $slug,
+            'name' => $request->name,
+            'slug' => $slug,
             'description' => $request->description,
-            'price'       => $request->price,
-            'status'      => $request->status,
+            'price' => $firstVariant['original_price'] ?? 0,
+            'status' => $request->status,
             'category_id' => $request->category_id,
-            'images'      => $imagePaths,
         ]);
 
-        // Xóa biến thể cũ và tạo lại
-        $product->variants()->delete();
+        $product->save(); // đảm bảo lưu thumbnail và images
+
+        // Lấy danh sách ID biến thể từ form
+        $variantIds = collect($request->variants)->pluck('id')->filter()->toArray();
+
+        // Xóa biến thể không còn trong form
+        if (!empty($variantIds)) {
+            $product->variants()->whereNotIn('id', $variantIds)->delete();
+        } else {
+            $product->variants()->delete();
+        }
+
+        // Cập nhật hoặc tạo mới biến thể
         foreach ($request->variants as $variant) {
             foreach ($variant['sizes'] as $size) {
-                ProductVariant::create([
-                    'product_id'     => $product->id,
-                    'color'          => $variant['color'],
-                    'size'           => $size,
-                    'original_price' => $variant['original_price'],
-                    'sale_price'     => $variant['sale_price'] ?? null,
-                    'stock'          => $variant['stock'],
-                ]);
+                ProductVariant::updateOrCreate(
+                    [
+                        'id' => $variant['id'] ?? null,
+                    ],
+                    [
+                        'product_id' => $product->id,
+                        'color' => $variant['color'],
+                        'size' => $size,
+                        'original_price' => $variant['original_price'],
+                        'sale_price' => $variant['sale_price'] ?? null,
+                        'stock' => $variant['stock'],
+                        'status' => $variant['status'] ?? 1,
+                    ]
+                );
             }
         }
 
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Cập nhật sản phẩm thành công!');
+        return redirect()->route('admin.products.index')->with('success', 'Cập nhật sản phẩm thành công!');
     }
 
-    // ===== XÓA SẢN PHẨM (SOFT DELETE) =====
+    // ===== XEM CHI TIẾT =====
+    public function show(Product $product)
+    {
+        $product->load('category', 'variants'); // nạp thêm quan hệ
+        return view('admin.products.show', compact('product'));
+    }
+
+
+    // ===== XÓA =====
     public function destroy(Product $product)
     {
         $product->delete();

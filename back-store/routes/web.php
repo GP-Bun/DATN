@@ -56,6 +56,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/variants/{variant}', [AdminProductVariantController::class, 'destroy'])->name('products.variants.destroy');
     });
 
+    // show
+    Route::get('/admin/products/{product}', [ProductController::class, 'show'])
+    ->name('admin.products.show');
+    
     // Order
     Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
 

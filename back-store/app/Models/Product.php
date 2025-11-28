@@ -25,4 +25,14 @@ class Product extends Model
     public function variants(){
         return $this->hasMany(ProductVariant::class);
     }
+
+    public function getStatusLabelAttribute()
+    {
+        return match($this->status) {
+            0 => 'Ẩn',
+            1 => 'Còn hàng',
+            2 => 'Hết hàng',
+            default => 'Không rõ',
+        };
+    }
 }
