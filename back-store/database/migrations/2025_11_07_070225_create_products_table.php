@@ -17,7 +17,7 @@ return new class extends Migration
             $table->decimal('price', 15,2);
             $table->string('thumbnail')->nullable();
             $table->json('images')->nullable();
-            $table->tinyInteger('status')->default(1);
+            $table->tinyInteger('status')->default(1)->comment('0=Ẩn,1=Còn hàng,2=Hết hàng');
             $table->timestamps();
             $table->softDeletes();
         });
