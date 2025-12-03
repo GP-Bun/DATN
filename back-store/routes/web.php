@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 
 
+
+
 // ==================== Public Routes ====================
 
 // Trang chính redirect tới danh mục
@@ -43,32 +45,51 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Category
+    // Categories
     Route::resource('categories', AdminCategoryController::class);
 
-    // Product
+    // ==================== Products Trash & Restore ====================
+     // Trang thùng rác
+    Route::get('products/trash', [AdminProductController::class, 'trash'])
+        ->name('products.trash');
+
+    // Khôi phục
+    Route::patch('products/{id}/restore', [AdminProductController::class, 'restore'])
+        ->name('products.restore');
+
+    // Xóa vĩnh viễn
+    Route::delete('products/{id}/force-delete', [AdminProductController::class, 'forceDelete'])
+        ->name('products.forceDelete');
+
+    // Products
     Route::resource('products', AdminProductController::class);
 
-    // Product Variant (nested)
-    Route::prefix('products/{product}')->group(function() {
+    
+
+    // Product Variants (nested)
+    Route::prefix('products/{product}')->group(function () {
         Route::post('/variants', [AdminProductVariantController::class, 'store'])->name('products.variants.store');
         Route::put('/variants/{variant}', [AdminProductVariantController::class, 'update'])->name('products.variants.update');
         Route::delete('/variants/{variant}', [AdminProductVariantController::class, 'destroy'])->name('products.variants.destroy');
     });
 
-    // show
-    Route::get('/admin/products/{product}', [ProductController::class, 'show'])
-    ->name('admin.products.show');
-    
-    // Order
+    // Colors
+    Route::resource('colors', \App\Http\Controllers\Admin\ColorController::class)->only(['index', 'store']);
+
+    // Sizes
+    Route::resource('sizes', \App\Http\Controllers\Admin\SizeController::class)->only(['index', 'store']);
+
+    // Orders
     Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
 
-    // Coupon
-    Route::resource('coupons', AdminCouponController::class)->only(['index', 'create', 'store', 'destroy']);
+    // Coupons
+    Route::resource('coupons', AdminCouponController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
-    // User (quản lý tài khoản)
+    // Users
     Route::resource('users', AdminUserController::class);
 
-       // Alias "accounts" để sidebar chạy được
+    // Alias "accounts" để sidebar chạy được
     Route::resource('accounts', AdminUserController::class);
+
+    
 });

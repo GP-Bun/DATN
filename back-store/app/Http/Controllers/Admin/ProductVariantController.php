@@ -9,9 +9,14 @@ class ProductVariantController extends Controller
 {
     public function destroy($productId, $variantId)
     {
-        $variant = ProductVariant::where('product_id', $productId)->findOrFail($variantId);
+        $variant = ProductVariant::where('product_id', $productId)
+                                 ->where('id', $variantId)
+                                 ->firstOrFail();
+
         $variant->delete();
 
-        return redirect()->route('admin.products.index')->with('success', 'Xóa biến thể thành công!');
+        return redirect()
+            ->route('admin.products.index', $productId)
+            ->with('success', 'Xóa biến thể thành công!');
     }
 }

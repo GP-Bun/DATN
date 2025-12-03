@@ -134,6 +134,14 @@
         <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
             <i class="bi bi-cart-check"></i> Đơn hàng
         </a>
+
+        {{-- mã giảm giá --}}
+        <a href="{{ route('admin.coupons.index') }}"
+            class="{{ request()->routeIs('admin.coupons.*') ? 'active' : '' }}">
+            <i class="bi bi-ticket-perforated"></i> Voucher
+        </a>
+
+
     </div>
 
     <!-- Main Content -->

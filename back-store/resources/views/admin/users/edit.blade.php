@@ -1,45 +1,55 @@
 @extends('layouts.app')
-
-@section('page-title', 'Sửa tài khoản')
-
+@section('title','Sửa người dùng')
 @section('content')
-<div class="bg-white p-4 rounded shadow-sm">
-    <h4 class="mb-3">Sửa tài khoản</h4>
-
-    <form action="{{ route('admin.users.update', $user->id) }}" method="POST">
-        @csrf
-        @method('PUT')
+<div class="p-4 bg-white rounded shadow-sm">
+    @if($errors->any())
+    <div class="alert alert-danger">
+        <ul>
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+    <h4>Cập nhật người dùng</h4>
+    <form action="{{ route('admin.users.update',$user->id) }}" method="POST">
+        @csrf @method('PUT')
 
         <div class="mb-3">
-            <label class="form-label">Tên</label>
-            <input type="text" name="name" class="form-control" value="{{ old('name', $user->name) }}" required>
-            @error('name') <small class="text-danger">{{ $message }}</small> @enderror
+            <label for="name" class="form-label">Tên</label>
+            <input type="text" name="name" id="name" class="form-control" value="{{ $user->name }}" required>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" value="{{ old('email', $user->email) }}" required>
-            @error('email') <small class="text-danger">{{ $message }}</small> @enderror
+            <label for="email" class="form-label">Email</label>
+            <input type="email" name="email" id="email" class="form-control" value="{{ $user->email }}" required>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Mật khẩu (để trống nếu không đổi)</label>
-            <input type="password" name="password" class="form-control">
-            @error('password') <small class="text-danger">{{ $message }}</small> @enderror
+            <label for="password" class="form-label">Mật khẩu (để trống nếu không đổi)</label>
+            <input type="password" name="password" id="password" class="form-control">
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Phân quyền</label>
-            <select name="role" class="form-select" required>
-                <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin</option>
-                <option value="user" {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>User</option>
+            <label for="password_confirmation" class="form-label">Xác nhận mật khẩu</label>
+            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="role" class="form-label">Vai trò</label>
+            <select name="role" id="role" class="form-select" required>
+                <option value="admin" @if($user->role=='admin') selected @endif>Admin</option>
+                <option value="user" @if($user->role=='user') selected @endif>User</option>
+                <option value="customer" @if($user->role=='customer') selected @endif>Customer</option>
             </select>
-            @error('role') <small class="text-danger">{{ $message }}</small> @enderror
         </div>
 
-        <button type="submit" class="btn btn-success">Cập nhật</button>
-        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Quay lại</a>
+        <div class="mb-3 form-check">
+            <input type="checkbox" name="active" id="active" class="form-check-input" @if($user->active) checked @endif>
+            <label for="active" class="form-check-label">Kích hoạt tài khoản</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Cập nhật</button>
     </form>
 </div>
 @endsection
-    

@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
+use App\Models\Color;
+use App\Models\Size;
 
 class ProductController extends Controller
 {
@@ -15,14 +17,19 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with('category')->paginate(10);
-        return view('admin.products.index', compact('products'));
+        $trashCount = Product::onlyTrashed()->count();
+
+        return view('admin.products.index', compact('products', 'trashCount'));
     }
+
 
     // ===== FORM THÊM =====
     public function create()
     {
         $categories = Category::all();
-        return view('admin.products.create', compact('categories'));
+        $colors = Color::all();
+        $sizes  = Size::all();
+        return view('admin.products.create', compact('categories', 'colors', 'sizes'));
     }
 
     // ===== LƯU SẢN PHẨM =====
@@ -35,22 +42,50 @@ class ProductController extends Controller
             'thumbnail' => 'required|image|max:2048',
             'images.*' => 'nullable|image|max:2048',
             'variants' => 'required|array|min:1',
-            'variants.*.color' => 'required|string|max:50',
+            'variants.*.color_id' => 'required|exists:colors,id',
             'variants.*.sizes' => 'required|array|min:1',
+            'variants.*.sizes.*' => 'exists:sizes,id',
             'variants.*.original_price' => 'required|numeric|min:0',
+            'variants.*.sale_price' => 'nullable|numeric|min:0',
             'variants.*.stock' => 'required|integer|min:0',
+        ], [
+            // Sản phẩm
+            'name.required' => 'Tên sản phẩm không được để trống.',
+            'name.string' => 'Tên sản phẩm phải là chuỗi ký tự.',
+            'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
+            'category_id.required' => 'Vui lòng chọn danh mục.',
+            'category_id.exists' => 'Danh mục đã chọn không hợp lệ.',
+            'description.string' => 'Mô tả phải là chuỗi ký tự.',
+            'status.required' => 'Vui lòng chọn trạng thái.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+            'thumbnail.image' => 'Ảnh đại diện phải là hình ảnh.',
+            'thumbnail.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+            'images.*.image' => 'Ảnh bổ sung phải là hình ảnh.',
+            'images.*.max' => 'Ảnh bổ sung không được vượt quá 2MB.',
+            // Biến thể
+            'variants.required' => 'Phải có ít nhất một biến thể.',
+            'variants.array' => 'Dữ liệu biến thể không hợp lệ.',
+            'variants.*.color_id.required' => 'Vui lòng chọn màu cho biến thể.',
+            'variants.*.color_id.exists' => 'Màu đã chọn không hợp lệ.',
+            'variants.*.sizes.required' => 'Vui lòng chọn ít nhất một size.',
+            'variants.*.sizes.array' => 'Danh sách size không hợp lệ.',
+            'variants.*.sizes.*.exists' => 'Size đã chọn không hợp lệ.',
+            'variants.*.original_price.required' => 'Giá gốc là bắt buộc.',
+            'variants.*.original_price.numeric' => 'Giá gốc phải là số.',
+            'variants.*.original_price.min' => 'Giá gốc không được nhỏ hơn 0.',
+            'variants.*.sale_price.numeric' => 'Giá giảm phải là số.',
+            'variants.*.sale_price.min' => 'Giá giảm không được nhỏ hơn 0.',
+            'variants.*.stock.required' => 'Số lượng tồn kho là bắt buộc.',
+            'variants.*.stock.integer' => 'Số lượng tồn kho phải là số nguyên.',
+            'variants.*.stock.min' => 'Số lượng tồn kho không được nhỏ hơn 0.',
         ]);
 
         $slug = Str::slug($request->name);
 
-        // Kiểm tra slug đã tồn tại chưa
         if (Product::withTrashed()->where('slug', $slug)->exists()) {
-            return back()
-                ->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])
-                ->withInput();
+            return back()->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])->withInput();
         }
 
-        // xử lý thumbnail, images...
         $thumbnailPath = $request->file('thumbnail')->store('products', 'public');
         $imagePaths = [];
         if ($request->hasFile('images')) {
@@ -73,15 +108,15 @@ class ProductController extends Controller
         ]);
 
         foreach ($request->variants as $variant) {
-            foreach ($variant['sizes'] as $size) {
+            foreach ($variant['sizes'] as $sizeId) {
                 ProductVariant::create([
-                    'product_id' => $product->id,
-                    'color' => $variant['color'],
-                    'size' => $size,
+                    'product_id'     => $product->id,
+                    'color_id'       => $variant['color_id'],
+                    'size_id'        => $sizeId,
                     'original_price' => $variant['original_price'],
-                    'sale_price' => $variant['sale_price'] ?? null,
-                    'stock' => $variant['stock'],
-                    'status' => 1,
+                    'sale_price'     => $variant['sale_price'] ?? null,
+                    'stock'          => $variant['stock'],
+                    'status'         => 1,
                 ]);
             }
         }
@@ -89,13 +124,14 @@ class ProductController extends Controller
         return redirect()->route('admin.products.index')->with('success', 'Thêm sản phẩm thành công!');
     }
 
-
     // ===== FORM SỬA =====
     public function edit(Product $product)
     {
         $categories = Category::all();
         $variants   = $product->variants;
-        return view('admin.products.edit', compact('product', 'categories', 'variants'));
+        $colors = Color::all();
+        $sizes  = Size::all();
+        return view('admin.products.edit', compact('product', 'categories', 'variants', 'colors', 'sizes'));
     }
 
     // ===== CẬP NHẬT =====
@@ -109,19 +145,49 @@ class ProductController extends Controller
             'thumbnail' => 'nullable|image|max:2048',
             'images.*' => 'nullable|image|max:2048',
             'variants' => 'required|array|min:1',
-            'variants.*.color' => 'required|string|max:50',
+            'variants.*.color_id' => 'required|exists:colors,id',
             'variants.*.sizes' => 'required|array|min:1',
+            'variants.*.sizes.*' => 'exists:sizes,id',
             'variants.*.original_price' => 'required|numeric|min:0',
             'variants.*.sale_price' => 'nullable|numeric|min:0',
             'variants.*.stock' => 'required|integer|min:0',
+        ], [
+            // Sản phẩm
+            'name.required' => 'Tên sản phẩm không được để trống.',
+            'name.string' => 'Tên sản phẩm phải là chuỗi ký tự.',
+            'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
+            'category_id.required' => 'Vui lòng chọn danh mục.',
+            'category_id.exists' => 'Danh mục đã chọn không hợp lệ.',
+            'description.string' => 'Mô tả phải là chuỗi ký tự.',
+            'status.required' => 'Vui lòng chọn trạng thái.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+            'thumbnail.image' => 'Ảnh đại diện phải là hình ảnh.',
+            'thumbnail.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+            'images.*.image' => 'Ảnh bổ sung phải là hình ảnh.',
+            'images.*.max' => 'Ảnh bổ sung không được vượt quá 2MB.',
+
+            // Biến thể
+            'variants.required' => 'Phải có ít nhất một biến thể.',
+            'variants.array' => 'Dữ liệu biến thể không hợp lệ.',
+            'variants.*.color_id.required' => 'Vui lòng chọn màu cho biến thể.',
+            'variants.*.color_id.exists' => 'Màu đã chọn không hợp lệ.',
+            'variants.*.sizes.required' => 'Vui lòng chọn ít nhất một size.',
+            'variants.*.sizes.array' => 'Danh sách size không hợp lệ.',
+            'variants.*.sizes.*.exists' => 'Size đã chọn không hợp lệ.',
+            'variants.*.original_price.required' => 'Giá gốc là bắt buộc.',
+            'variants.*.original_price.numeric' => 'Giá gốc phải là số.',
+            'variants.*.original_price.min' => 'Giá gốc không được nhỏ hơn 0.',
+            'variants.*.sale_price.numeric' => 'Giá giảm phải là số.',
+            'variants.*.sale_price.min' => 'Giá giảm không được nhỏ hơn 0.',
+            'variants.*.stock.required' => 'Số lượng tồn kho là bắt buộc.',
+            'variants.*.stock.integer' => 'Số lượng tồn kho phải là số nguyên.',
+            'variants.*.stock.min' => 'Số lượng tồn kho không được nhỏ hơn 0.',
         ]);
 
-        // Cập nhật ảnh đại diện nếu có
         if ($request->hasFile('thumbnail')) {
             $product->thumbnail = $request->file('thumbnail')->store('products', 'public');
         }
 
-        // Cập nhật ảnh bổ sung nếu có
         if ($request->hasFile('images')) {
             $imagePaths = [];
             foreach ($request->file('images') as $img) {
@@ -130,20 +196,14 @@ class ProductController extends Controller
             $product->images = $imagePaths;
         }
 
-        // Lấy slug từ name
         $slug = Str::slug($request->name);
 
-        // Kiểm tra slug đã tồn tại ở sản phẩm khác chưa
         if (Product::where('slug', $slug)->where('id', '!=', $product->id)->exists()) {
-            return back()
-                ->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])
-                ->withInput();
+            return back()->withErrors(['name' => 'Tên sản phẩm đã tồn tại.'])->withInput();
         }
 
-        // Lấy biến thể đầu tiên trong request
         $firstVariant = collect($request->variants)->first();
 
-        // Cập nhật sản phẩm chính
         $product->update([
             'name' => $request->name,
             'slug' => $slug,
@@ -153,33 +213,30 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
         ]);
 
-        $product->save(); // đảm bảo lưu thumbnail và images
+        $product->save();
 
-        // Lấy danh sách ID biến thể từ form
         $variantIds = collect($request->variants)->pluck('id')->filter()->toArray();
 
-        // Xóa biến thể không còn trong form
         if (!empty($variantIds)) {
             $product->variants()->whereNotIn('id', $variantIds)->delete();
         } else {
             $product->variants()->delete();
         }
 
-        // Cập nhật hoặc tạo mới biến thể
         foreach ($request->variants as $variant) {
-            foreach ($variant['sizes'] as $size) {
+            foreach ($variant['sizes'] as $sizeId) {
                 ProductVariant::updateOrCreate(
                     [
                         'id' => $variant['id'] ?? null,
                     ],
                     [
-                        'product_id' => $product->id,
-                        'color' => $variant['color'],
-                        'size' => $size,
+                        'product_id'     => $product->id,
+                        'color_id'       => $variant['color_id'],
+                        'size_id'        => $sizeId,
                         'original_price' => $variant['original_price'],
-                        'sale_price' => $variant['sale_price'] ?? null,
-                        'stock' => $variant['stock'],
-                        'status' => $variant['status'] ?? 1,
+                        'sale_price'     => $variant['sale_price'] ?? null,
+                        'stock'          => $variant['stock'],
+                        'status'         => $variant['status'] ?? 1,
                     ]
                 );
             }
@@ -191,16 +248,38 @@ class ProductController extends Controller
     // ===== XEM CHI TIẾT =====
     public function show(Product $product)
     {
-        $product->load('category', 'variants'); // nạp thêm quan hệ
+        $product->load('category', 'variants.color', 'variants.size');
         return view('admin.products.show', compact('product'));
     }
-
 
     // ===== XÓA =====
     public function destroy(Product $product)
     {
         $product->delete();
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Xóa sản phẩm thành công!');
+        return redirect()->route('admin.products.index')->with('success', 'Xóa sản phẩm thành công!');
+    }
+
+    public function trash()
+    {
+        $products = Product::onlyTrashed()->with('category')->paginate(10);
+        return view('admin.products.trash', compact('products'));
+    }
+
+    public function restore($id)
+    {
+        $product = Product::withTrashed()->findOrFail($id);
+        $product->restore();
+
+        return redirect()->route('admin.products.trash')
+            ->with('success', 'Khôi phục sản phẩm thành công!');
+    }
+
+    public function forceDelete($id)
+    {
+        $product = Product::withTrashed()->findOrFail($id);
+        $product->forceDelete();
+
+        return redirect()->route('admin.products.trash')
+            ->with('success', 'Xóa vĩnh viễn sản phẩm thành công!');
     }
 }
