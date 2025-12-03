@@ -10,9 +10,9 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user('admin'); 
+        $user = $request->user();
 
-        if ($user) {
+        if ($user && $user->role === 'admin') {
             return $next($request);
         }
 

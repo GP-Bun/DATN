@@ -17,5 +17,7 @@ class DatabaseSeeder extends Seeder
         
         // Gọi CouponSeeder để tạo mã giảm giá
         $this->call(CouponSeeder::class);
+
+         $this->call(ColorSizeSeeder::class);
     }
 }

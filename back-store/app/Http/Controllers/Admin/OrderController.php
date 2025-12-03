@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Coupon;
 use App\Models\Order;
 use Illuminate\Http\Request;
 
@@ -28,4 +29,26 @@ class OrderController extends Controller
         $order->delete();
         return redirect()->route('admin.orders.index')->with('success','Xóa đơn hàng thành công!');
     }
+
+    public function applyCoupon(Request $request)
+{
+    $orderAmount = $request->order_amount;
+    $code = $request->coupon_code;
+
+    $coupon = Coupon::where('code', $code)->first();
+
+    if (!$coupon || !$coupon->isValid($orderAmount)) {
+        return back()->withErrors(['coupon_code' => 'Voucher không hợp lệ hoặc đã hết hạn.']);
+    }
+
+    $discount = $coupon->calculateDiscount($orderAmount);
+
+    // Cập nhật số lần sử dụng
+    $coupon->increment('used_count');
+
+    $finalAmount = $orderAmount - $discount;
+
+    return back()->with('success', "Áp dụng voucher thành công! Giảm giá: {$discount}, Tổng thanh toán: {$finalAmount}");
+}
+
 }

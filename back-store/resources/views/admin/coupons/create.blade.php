@@ -1,71 +1,74 @@
 @extends('layouts.app')
 
-@section('title', 'Tạo mã giảm giá')
+@section('page-title', 'Thêm voucher')
 
 @section('content')
-<div class="container mt-3">
-    <div class="card">
-        <div class="card-header bg-primary text-white">Tạo mã giảm giá mới</div>
-        <div class="card-body">
-            @if($errors->any())
-                <div class="alert alert-danger">
-                    <ul class="mb-0">
-                        @foreach($errors->all() as $err)
-                            <li>{{ $err }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+    <div class="bg-white p-4 rounded shadow-sm">
+        <h4 class="mb-3">Thêm voucher mới</h4>
 
-            <form action="{{ route('coupons.store') }}" method="POST">
-                @csrf
-                <div class="row g-2">
-                    <div class="col-md-4">
-                        <label class="form-label">Mã (code)</label>
-                        <input name="code" class="form-control" value="{{ old('code') }}" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Loại</label>
-                        <select name="type" class="form-select">
-                            <option value="percent">Phần trăm</option>
-                            <option value="fixed">Tiền cố định</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Giá trị</label>
-                        <input name="value" type="number" step="0.01" class="form-control" value="{{ old('value', 0) }}" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Giới hạn dùng</label>
-                        <input name="usage_limit" type="number" class="form-control" value="{{ old('usage_limit') }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Min đơn (đ)</label>
-                        <input name="min_order_amount" type="number" step="0.01" class="form-control" value="{{ old('min_order_amount', 0) }}">
-                    </div>
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-                    <div class="col-md-4">
-                        <label class="form-label">Bắt đầu</label>
-                        <input name="starts_at" type="date" class="form-control" value="{{ old('starts_at') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Kết thúc</label>
-                        <input name="ends_at" type="date" class="form-control" value="{{ old('ends_at') }}">
-                    </div>
-                    <div class="col-md-4 align-self-end">
-                        <div class="form-check">
-                            <input name="active" class="form-check-input" type="checkbox" id="active" checked>
-                            <label class="form-check-label" for="active">Kích hoạt</label>
-                        </div>
-                    </div>
+        <form action="{{ route('admin.coupons.store') }}" method="POST">
+            @csrf
 
-                    <div class="col-12 mt-3">
-                        <button class="btn btn-success">Lưu mã giảm giá</button>
-                        <a href="{{ route('coupons.index') }}" class="btn btn-secondary">Hủy</a>
-                    </div>
-                </div>
-            </form>
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Mã voucher</label>
+                <input type="text" name="code" class="form-control" value="{{ old('code') }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Loại giảm giá</label>
+                <select name="type" class="form-select" required>
+                    <option value="percent" {{ old('type') == 'percent' ? 'selected' : '' }}>Phần trăm (%)</option>
+                    <option value="fixed" {{ old('type') == 'fixed' ? 'selected' : '' }}>Số tiền (VNĐ)</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Giá trị</label>
+                <input type="number" name="value" class="form-control" value="{{ old('value') }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Đơn hàng tối thiểu</label>
+                <input type="number" name="min_order_amount" class="form-control" value="{{ old('min_order_amount') }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Giảm tối đa</label>
+                <input type="number" name="max_discount" class="form-control" value="{{ old('max_discount') }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Ngày bắt đầu</label>
+                <input type="datetime-local" name="starts_at" class="form-control" value="{{ old('starts_at') }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Ngày kết thúc</label>
+                <input type="datetime-local" name="ends_at" class="form-control" value="{{ old('ends_at') }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Giới hạn số lần sử dụng</label>
+                <input type="number" name="usage_limit" class="form-control" value="{{ old('usage_limit') }}">
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="active" class="form-check-input" id="active" {{ old('active') ? 'checked' : '' }}>
+                <label class="form-check-label" for="active">Kích hoạt voucher</label>
+            </div>
+
+            <button type="submit" class="btn btn-success">Lưu</button>
+            <a href="{{ route('admin.coupons.index') }}" class="btn btn-secondary">Hủy</a>
+        </form>
     </div>
-</div>
 @endsection

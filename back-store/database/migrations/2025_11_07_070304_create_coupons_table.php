@@ -15,11 +15,11 @@ return new class extends Migration
             $table->decimal('value', 15, 2);
             $table->decimal('min_order_amount', 15, 2)->nullable();
             $table->decimal('max_discount', 15, 2)->nullable();
-            $table->timestamp('starts_at')->nullable(); // ← đổi tên và kiểu timestamp
-            $table->timestamp('ends_at')->nullable();   // ← đổi tên và kiểu timestamp
+            $table->timestamp('starts_at')->nullable(); 
+            $table->timestamp('ends_at')->nullable();   
             $table->integer('usage_limit')->nullable();
-            $table->integer('used_count')->default(0); // thêm nếu chưa có
-            $table->boolean('active')->default(true);
+            $table->integer('used_count')->default(0); 
+            $table->boolean('active')->default(value: false);
             $table->timestamps();
         });
     }

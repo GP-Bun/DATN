@@ -1,67 +1,83 @@
 @extends('layouts.app')
 
-@section('title', 'Quản lý mã giảm giá')
+@section('page-title', 'Danh sách voucher')
 
 @section('content')
-<div class="container mt-3">
-    <div class="d-flex justify-content-between mb-3">
-        <h4>🎟️ Danh sách mã giảm giá</h4>
-        <a href="{{ route('coupons.create') }}" class="btn btn-primary">Tạo mã mới</a>
-    </div>
+    <div class="bg-white p-4 rounded shadow-sm">
+        <h4 class="mb-3">Danh sách voucher</h4>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
 
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
+        <div class="mb-3">
+            <a href="{{ route('admin.coupons.create') }}" class="btn btn-primary">
+                + Thêm voucher
+            </a>
+
+        </div>
+
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light">
                 <tr>
-                    <th>ID</th>
-                    <th>Code</th>
+                    <th>Mã</th>
                     <th>Loại</th>
                     <th>Giá trị</th>
-                    <th>Hạn dùng</th>
-                    <th>Đã dùng / Giới hạn</th>
+                    <th>Đơn hàng tối thiểu</th>
+                    <th>Giảm tối đa</th>
+                    <th>Thời gian</th>
+                    <th>Sử dụng</th>
                     <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th class="text-center">Hành động</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($coupons as $c)
+                @forelse ($coupons as $coupon)
                     <tr>
-                        <td>{{ $c->id }}</td>
-                        <td><strong>{{ $c->code }}</strong></td>
-                        <td>{{ $c->type }}</td>
+                        <td><span class="fw-bold">{{ $coupon->code }}</span></td>
                         <td>
-                            @if($c->type == 'percent')
-                                {{ $c->value }}%
+                            @if ($coupon->type === 'percent')
+                                <span class="badge bg-info">%</span>
                             @else
-                                {{ number_format($c->value,0,',','.') }} đ
+                                <span class="badge bg-warning">VNĐ</span>
                             @endif
                         </td>
+                        <td>{{ $coupon->value }}</td>
+                        <td>{{ $coupon->min_order_amount ?? '-' }}</td>
+                        <td>{{ $coupon->max_discount ?? '-' }}</td>
                         <td>
-                            @if($c->starts_at){{ $c->starts_at->format('d/m/Y') }}@endif
-                            -
-                            @if($c->ends_at){{ $c->ends_at->format('d/m/Y') }}@endif
+                            {{ $coupon->starts_at ? $coupon->starts_at->format('d/m/Y H:i') : '-' }} <br>
+                            {{ $coupon->ends_at ? $coupon->ends_at->format('d/m/Y H:i') : '-' }}
                         </td>
-                        <td>{{ $c->used_count }} / {{ $c->usage_limit ?? '∞' }}</td>
-                        <td>{!! $c->active ? '<span class="badge bg-success">Kích hoạt</span>' : '<span class="badge bg-secondary">Vô hiệu</span>' !!}</td>
                         <td>
-                            <form action="{{ route('coupons.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Xóa mã {{ $c->code }}?')">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-sm btn-danger">Xóa</button>
+                            {{ $coupon->used_count }}/{{ $coupon->usage_limit ?? '∞' }}
+                        </td>
+                        <td>
+                            @if ($coupon->active)
+                                <span class="badge bg-success">Hoạt động</span>
+                            @else
+                                <span class="badge bg-secondary">Ngừng</span>
+                            @endif
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ route('admin.coupons.edit', $coupon->id) }}" class="btn btn-sm btn-warning">Sửa</a>
+<form action="{{ route('admin.coupons.destroy', $coupon->id) }}" method="POST" class="d-inline">
+    @csrf
+    @method('DELETE')
+    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+</form>
+
                             </form>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="text-center">Không có mã giảm giá</td></tr>
+                    <tr>
+                        <td colspan="9" class="text-center">Chưa có voucher nào</td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>
-    </div>
 
-    <div class="d-flex justify-content-center">{{ $coupons->links() }}</div>
-</div>
+        {{ $coupons->links() }}
+    </div>
 @endsection

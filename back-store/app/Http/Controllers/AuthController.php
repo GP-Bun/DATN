@@ -5,67 +5,57 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    // Đăng ký
+    // Đăng ký user
     public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
         ], [
-            'name.required' => 'Họ và tên là bắt buộc',
-            'name.string' => 'Họ và tên phải là chuỗi',
-            'name.max' => 'Họ và tên không được vượt quá 255 ký tự',
-            'email.required' => 'Email là bắt buộc',
-            'email.email' => 'Email không đúng định dạng',
-            'email.unique' => 'Email đã được sử dụng',
-            'password.required' => 'Mật khẩu là bắt buộc',
-            'password.min' => 'Mật khẩu phải ít nhất 6 ký tự',
-        ]);
+            'name.required'     => 'Tên không được để trống',
+            'name.string'       => 'Tên phải là chuỗi ký tự',
+            'name.max'          => 'Tên không được vượt quá 255 ký tự',
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Đăng ký thất bại',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+            'email.required'    => 'Email không được để trống',
+            'email.email'       => 'Email phải đúng định dạng',
+            'email.unique'      => 'Email này đã được sử dụng',
+
+            'password.required' => 'Mật khẩu không được để trống',
+            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
+            'password.min'      => 'Mật khẩu phải có ít nhất 6 ký tự',
+        ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'     => $request->name,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
+            'role'     => 'user',
+            'active'   => 1,
         ]);
 
-        return response()->json([
-            'message' => 'Đăng ký thành công',
-            'user' => $user
-        ], 201);
+        return response()->json(['user' => $user], 201);
     }
 
-    // Đăng nhập
+    // Đăng nhập user
     public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required'
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
         ], [
-            'email.required' => 'Email là bắt buộc',
-            'email.email' => 'Email không đúng định dạng',
-            'password.required' => 'Mật khẩu là bắt buộc',
+            'email.required'    => 'Email không được để trống',
+            'email.email'       => 'Email phải đúng định dạng',
+            'password.required' => 'Mật khẩu không được để trống',
+            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Đăng nhập thất bại',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)
+                    ->where('active', 1)
+                    ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
@@ -74,54 +64,35 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Đăng nhập thành công!',
-            'user' => $user,
-            'token' => $token,
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
+            'user'         => $user
         ]);
     }
 
-    // Cập nhật thông tin user
+    // Cập nhật profile
     public function updateProfile(Request $request)
     {
-        $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+        $request->validate([
+            'name'  => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
         ], [
-            'name.required' => 'Họ và tên là bắt buộc',
-            'name.string' => 'Họ và tên phải là chuỗi',
-            'name.max' => 'Họ và tên không được vượt quá 255 ký tự',
-            'email.required' => 'Email là bắt buộc',
-            'email.email' => 'Email không đúng định dạng',
-            'email.unique' => 'Email đã được sử dụng',
+            'name.string' => 'Tên phải là chuỗi ký tự',
+            'name.max'    => 'Tên không được vượt quá 255 ký tự',
+            'phone.string'=> 'Số điện thoại phải là chuỗi ký tự',
+            'phone.max'   => 'Số điện thoại không được vượt quá 20 ký tự',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Cập nhật thất bại',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $user = $request->user();
+        $user->update($request->only('name','phone'));
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-        ]);
-
-        return response()->json([
-            'message' => 'Cập nhật thông tin thành công!',
-            'user' => $user
-        ]);
+        return response()->json(['message'=>'Cập nhật thành công','user'=>$user]);
     }
 
-    // Đăng xuất
+    // Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json([
-            'message' => 'Đăng xuất thành công!'
-        ]);
+        return response()->json(['message'=>'Đăng xuất thành công']);
     }
 }

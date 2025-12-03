@@ -4,72 +4,82 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // =================== Đăng ký Admin ===================
+    // Đăng ký Admin
     public function register(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:admins,email',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
+        ], [
+            'name.required' => 'Tên không được để trống',
+            'name.string'   => 'Tên phải là chuỗi ký tự',
+            'name.max'      => 'Tên không được vượt quá 255 ký tự',
+
+            'email.required' => 'Email không được để trống',
+            'email.email'    => 'Email phải là email hợp lệ',
+            'email.unique'   => 'Email đã tồn tại',
+
+            'password.required' => 'Mật khẩu không được để trống',
+            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
+            'password.min'      => 'Mật khẩu phải có ít nhất 6 ký tự',
         ]);
 
-        $admin = Admin::create([
-            'name' => $request->name,
-            'email' => $request->email,
+        $admin = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
+            'role'     => 'admin',
+            'active'   => 1,
         ]);
 
         return response()->json(['admin' => $admin], 201);
     }
 
-    // =================== Đăng nhập Admin ===================
+    // Đăng nhập Admin
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email'    => 'required|email',
             'password' => 'required|string',
+        ], [
+            'email.required'    => 'Email không được để trống',
+            'email.email'       => 'Email phải là email hợp lệ',
+            'password.required' => 'Mật khẩu không được để trống',
+            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
         ]);
 
-        $admin = Admin::where('email', $request->email)->first();
+        $admin = User::where('email', $request->email)
+            ->where('role', 'admin')
+            ->where('active', 1)
+            ->first();
 
-        // Email không phải admin
-        if (!$admin) {
-            return response()->json(['message' => 'Chỉ admin mới được đăng nhập'], 403);
-        }
-
-        // Kiểm tra mật khẩu
-        if (!Hash::check($request->password, $admin->password)) {
-            return response()->json(['message' => 'Mật khẩu không đúng'], 401);
+        if (!$admin || !Hash::check($request->password, $admin->password)) {
+            return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
         }
 
         $token = $admin->createToken('admin_token')->plainTextToken;
 
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'Bearer',
-            'admin' => $admin
+            'token_type'   => 'Bearer',
+            'admin'        => $admin
         ]);
     }
 
-    // =================== Logout ===================
+    // Logout
     public function logout(Request $request)
     {
-        // Lấy admin hiện tại từ Sanctum
-        $admin = Auth::guard('sanctum')->user();
-        if ($admin) {
-            $admin->currentAccessToken()->delete();
-        }
-
+        $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Đăng xuất thành công']);
     }
 
-    // =================== Dashboard Admin (ví dụ) ===================
+    // Dashboard
     public function dashboard()
     {
         return response()->json(['message' => 'Chào mừng Admin!']);
