@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -11,11 +12,22 @@ class ColorController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:50|unique:colors,name',
-            'code' => 'required|string|max:7',
+            'code' => 'required|string|max:7|regex:/^#([A-Fa-f0-9]{6})$/|unique:colors,code',
         ]);
 
-        Color::create($request->only('name','code'));
+        Color::create($request->only('name', 'code'));
 
-        return redirect()->back()->with('success','Thêm màu thành công!');
+        return redirect()->back()->with('success', 'Thêm màu thành công!');
+    }
+
+    public function destroy(Color $color)
+    {
+        if ($color->variants()->exists()) {
+            return back()->with('error', 'Không thể xóa màu vì đang được sử dụng trong sản phẩm.');
+        }
+
+        $color->delete();
+
+        return back()->with('success', 'Xóa màu thành công');
     }
 }

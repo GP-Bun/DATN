@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -15,6 +16,17 @@ class SizeController extends Controller
 
         Size::create($request->only('value'));
 
-        return redirect()->back()->with('success','Thêm size thành công!');
+        return redirect()->back()->with('success', 'Thêm size thành công!');
+    }
+
+    public function destroy(Size $size)
+    {
+        if ($size->variants()->exists()) {
+            return back()->with('error', 'Không thể xóa size vì đang được sử dụng trong sản phẩm.');
+        }
+
+        $size->delete();
+
+        return back()->with('success', 'Xóa size thành công');
     }
 }

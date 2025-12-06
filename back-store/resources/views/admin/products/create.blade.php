@@ -144,11 +144,13 @@
     {{-- Modal thêm màu --}}
     <div class="modal fade" id="modalAddColor" tabindex="-1">
         <div class="modal-dialog">
-            <form method="POST" action="{{ route('admin.colors.store') }}">
-                @csrf
-                <div class="modal-content">
+            <div class="modal-content">
+                {{-- Form thêm màu --}}
+                <form method="POST" action="{{ route('admin.colors.store') }}">
+                    @csrf
                     <div class="modal-header">
                         <h5 class="modal-title">Thêm màu mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -165,19 +167,50 @@
                         <button type="submit" class="btn btn-success">Lưu</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
                     </div>
+                </form>
+
+                <hr class="my-2">
+
+                {{-- Danh sách màu hiện có --}}
+                <div class="modal-body">
+                    <h6>Danh sách màu hiện có</h6>
+                    <ul class="list-group">
+                        @foreach ($colors as $color)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span
+                                        style="display:inline-block;width:20px;height:20px;background:{{ $color->code }}"></span>
+                                    {{ $color->name }}
+                                </span>
+
+                                <form action="{{ route('admin.colors.destroy', $color->id) }}" method="POST"
+                                    style="display:inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Bạn có chắc muốn xóa màu này?')">
+                                        Xóa
+                                    </button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
+
 
     {{-- Modal thêm size --}}
     <div class="modal fade" id="modalAddSize" tabindex="-1">
         <div class="modal-dialog">
-            <form method="POST" action="{{ route('admin.sizes.store') }}">
-                @csrf
-                <div class="modal-content">
+            <div class="modal-content">
+                {{-- Form thêm size --}}
+                <form method="POST" action="{{ route('admin.sizes.store') }}">
+                    @csrf
                     <div class="modal-header">
                         <h5 class="modal-title">Thêm size mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -189,10 +222,37 @@
                         <button type="submit" class="btn btn-success">Lưu</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
                     </div>
+                </form>
+
+                <hr class="my-2">
+
+                {{-- Danh sách size hiện có --}}
+                <div class="modal-body">
+                    <h6>Danh sách size hiện có</h6>
+                    <ul class="list-group">
+                        @foreach ($sizes as $size)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ $size->value }}
+                                {{-- Form xóa size riêng --}}
+                                <form action="{{ route('admin.sizes.destroy', $size->id) }}" method="POST"
+                                    style="display:inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Bạn có chắc muốn xóa size này?')">
+                                        Xóa
+                                    </button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
+
+
+
 @endsection
 @section('scripts')
     <script>
