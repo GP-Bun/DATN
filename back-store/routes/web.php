@@ -49,7 +49,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('categories', AdminCategoryController::class);
 
     // ==================== Products Trash & Restore ====================
-     // Trang thùng rác
+    // Trang thùng rác
     Route::get('products/trash', [AdminProductController::class, 'trash'])
         ->name('products.trash');
 
@@ -64,7 +64,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Products
     Route::resource('products', AdminProductController::class);
 
-    
+
 
     // Product Variants (nested)
     Route::prefix('products/{product}')->group(function () {
@@ -74,10 +74,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     // Colors
-    Route::resource('colors', \App\Http\Controllers\Admin\ColorController::class)->only(['index', 'store']);
+    Route::resource('colors', \App\Http\Controllers\Admin\ColorController::class)
+        ->only(['index', 'store', 'destroy']);
 
     // Sizes
-    Route::resource('sizes', \App\Http\Controllers\Admin\SizeController::class)->only(['index', 'store']);
+    Route::resource('sizes', \App\Http\Controllers\Admin\SizeController::class)->only(['index', 'store', 'destroy']);
 
     // Orders
     Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
@@ -90,6 +91,4 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // Alias "accounts" để sidebar chạy được
     Route::resource('accounts', AdminUserController::class);
-
-    
 });

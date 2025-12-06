@@ -7,19 +7,16 @@ use Illuminate\Http\Request;
 
 class Authenticate extends Middleware
 {
-    /**
-     * Xác định đường dẫn để redirect nếu chưa đăng nhập.
-     */
     protected function redirectTo($request)
     {
-        // Nếu request muốn nhận JSON (API / React), trả về JSON
+        // Nếu request là API → trả về JSON 401
         if ($request->expectsJson()) {
-            abort(response()->json([
+            return response()->json([
                 'message' => 'Unauthorized – Bạn chưa đăng nhập!'
-            ], 401));
+            ], 401);
         }
 
-        // Nếu là request web thông thường, redirect về login
-        return route('login'); // hoặc route admin login nếu cần
+        // Nếu là request web → redirect về trang login web
+        return route('login');
     }
 }

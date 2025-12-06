@@ -53,12 +53,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // -------------------- User --------------------
   const loginUser = async (email: string, password: string, remember = false) => {
     try {
-      const res = await userApi.post<{ user: User; token: string }>("/login", { email, password });
+      const res = await userApi.post<{ user: User; access_token: string }>("/login", { email, password });
       setUser(res.data.user);
-      if (remember) localStorage.setItem("user_token", res.data.token);
+
+      if (remember) {
+        localStorage.setItem("user_token", res.data.access_token);
+      }
+      // nếu không tick remember thì không lưu token → reload sẽ đăng xuất
     } catch (err: any) {
-      if (axios.isAxiosError(err)) throw err.response?.data || { message: "Login User thất bại" };
-      throw { message: "Login User thất bại" };
+      throw err.response?.data || { message: "Login User thất bại" };
     }
   };
 
@@ -66,8 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await userApi.post("/register", { name, email, password });
     } catch (err: any) {
-      if (axios.isAxiosError(err)) throw err.response?.data || { message: "Đăng ký User thất bại" };
-      throw { message: "Đăng ký User thất bại" };
+      throw err.response?.data || { message: "Đăng ký User thất bại" };
     }
   };
 
