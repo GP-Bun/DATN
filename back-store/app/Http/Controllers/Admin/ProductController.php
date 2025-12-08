@@ -225,20 +225,26 @@ class ProductController extends Controller
 
         foreach ($request->variants as $variant) {
             foreach ($variant['sizes'] as $sizeId) {
-                ProductVariant::updateOrCreate(
-                    [
-                        'id' => $variant['id'] ?? null,
-                    ],
-                    [
-                        'product_id'     => $product->id,
-                        'color_id'       => $variant['color_id'],
-                        'size_id'        => $sizeId,
-                        'original_price' => $variant['original_price'],
-                        'sale_price'     => $variant['sale_price'] ?? null,
-                        'stock'          => $variant['stock'],
-                        'status'         => $variant['status'] ?? 1,
-                    ]
-                );
+                $match = [
+                    'product_id' => $product->id,
+                    'color_id'   => $variant['color_id'],
+                    'size_id'    => $sizeId,
+                ];
+
+                // Nếu có id thì ưu tiên match theo id để tránh ghi đè nhầm
+                if (!empty($variant['id'])) {
+                    $match['id'] = $variant['id'];
+                }
+
+                ProductVariant::updateOrCreate($match, [
+                    'product_id'     => $product->id,
+                    'color_id'       => $variant['color_id'],
+                    'size_id'        => $sizeId,
+                    'original_price' => $variant['original_price'],
+                    'sale_price'     => $variant['sale_price'] ?? null,
+                    'stock'          => $variant['stock'],
+                    'status'         => $variant['status'] ?? 1,
+                ]);
             }
         }
 

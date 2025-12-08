@@ -1,193 +1,213 @@
-import { useParams } from 'react-router-dom'
-import { useCart } from '../store/CartContext'
-import { useState } from 'react'
+import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { getProductDetail } from "../api/productDetail.api";
+import { addToCart } from "../api/cart.api";
 
 export default function ProductDetailPage() {
-  const { id } = useParams()
-  const { addToCart } = useCart()
-  const [quantity, setQuantity] = useState(1)
-  const [selectedColor, setSelectedColor] = useState('black')
-  const [selectedSize, setSelectedSize] = useState('M')
-  const [isAdding, setIsAdding] = useState(false)
+  const { id } = useParams();
 
-  const product = {
-    id: id,
-    name: 'Áo thun nam cao cấp',
-    price: 299000,
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=400&fit=crop',
-    description: 'Áo thun nam chất liệu cotton 100%, thoáng mát, bền đẹp. Thiết kế đơn giản, dễ phối đồ. Sản phẩm được thiết kế với công nghệ hiện đại, đảm bảo sự thoải mái tối đa cho người mặc.',
-    colors: [
-      { name: 'Đen', value: 'black', hex: '#000000' },
-      { name: 'Trắng', value: 'white', hex: '#ffffff' },
-      { name: 'Xanh dương', value: 'blue', hex: '#3b82f6' },
-      { name: 'Đỏ', value: 'red', hex: '#ef4444' }
-    ],
-    sizes: ['S', 'M', 'L', 'XL'],
-    stock: 50,
-    rating: 4.8,
-    reviews: 128
-  }
+  const [product, setProduct] = useState<any>(null);
+  const [quantity, setQuantity] = useState(1);
+
+  const [selectedColor, setSelectedColor] = useState<number | null>(null);
+  const [selectedSize, setSelectedSize] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+
+  // Load sản phẩm từ API
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const data = await getProductDetail(Number(id));
+
+        setProduct(data);
+
+        // Auto chọn biến thể đầu tiên
+        if (data.colors?.length) {
+          setSelectedColor(data.colors[0].id);
+        }
+        if (data.sizes?.length) {
+          setSelectedSize(data.sizes[0].id);
+        }
+
+      } catch (error) {
+        console.error("Lỗi khi tải sản phẩm:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+
+  if (loading) return <p className="text-center mt-10">Đang tải...</p>;
+  if (!product) return <p className="text-center mt-10">Không tìm thấy sản phẩm</p>;
+
+  // Tìm đúng variant theo màu + size
+  const selectedVariant = product.variants?.find(
+    (v: any) =>
+      v.color_id === Number(selectedColor) &&
+      v.size_id === Number(selectedSize)
+  );
 
   const handleAddToCart = async () => {
-    setIsAdding(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    addToCart({
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity,
-      color: selectedColor,
-      size: selectedSize
-    })
-    
-    setIsAdding(false)
-    
-    // Show success animation
-    const button = document.querySelector('.add-to-cart-btn')
-    if (button) {
-      button.classList.add('success-animation')
-      setTimeout(() => {
-        button.classList.remove('success-animation')
-      }, 2000)
+    if (!selectedVariant) {
+      alert("Vui lòng chọn màu và kích thước hợp lệ!");
+      return;
     }
-  }
+
+    setIsAdding(true);
+
+    try {
+      await addToCart(
+        selectedVariant.id,
+        quantity,
+        selectedColor?.toString() ?? null,
+        selectedSize?.toString() ?? null
+      );
+
+      alert("🛒 Đã thêm vào giỏ hàng!");
+    } catch (err) {
+      console.error("Lỗi thêm giỏ hàng:", err);
+      alert("Lỗi khi thêm vào giỏ!");
+    }
+
+    setIsAdding(false);
+  };
 
   return (
     <div className="main">
       <div className="product-detail-container">
         <div className="product-detail">
+
+          {/* ẢNH */}
           <div className="product-image-section">
             <div className="product-image-wrapper">
-              <img src={product.image} alt={product.name} className="product-main-image" />
-              <div className="image-overlay">
-                <span className="zoom-hint">🔍 Hover để phóng to</span>
-              </div>
+              <img
+                src={product.thumbnail}
+                alt={product.name}
+                className="product-main-image"
+              />
             </div>
           </div>
-          
+
+          {/* THÔNG TIN */}
           <div className="product-info-section">
-            <div className="product-header">
-              <h1 className="product-title">{product.name}</h1>
-              <div className="product-rating">
-                <div className="stars">
-                  {[...Array(5)].map((_, i) => (
-                    <span key={i} className={i < Math.floor(product.rating) ? 'star filled' : 'star'}>⭐</span>
-                  ))}
-                </div>
-                <span className="rating-text">{product.rating}/5 ({product.reviews} đánh giá)</span>
-              </div>
-            </div>
-            
+
+            <h1 className="product-title">{product.name}</h1>
+
             <div className="product-price-section">
-              <span className="current-price">{product.price.toLocaleString('vi-VN')}đ</span>
-              <span className="original-price">399.000đ</span>
-              <span className="discount-badge">-25%</span>
+              <span className="current-price">
+                {(selectedVariant?.sale_price ?? product.price).toLocaleString("vi-VN")}đ
+              </span>
             </div>
-            
+
             <div className="product-description">
               <p>{product.description}</p>
             </div>
-            
-            <div className="variant-section">
-              <h3 className="variant-title">Màu sắc</h3>
-              <div className="color-options">
-                {product.colors.map(color => (
-                  <button
-                    key={color.value}
-                    className={`color-option ${selectedColor === color.value ? 'selected' : ''}`}
-                    onClick={() => setSelectedColor(color.value)}
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
-                  >
-                    <span className="color-name">{color.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            <div className="variant-section">
-              <h3 className="variant-title">Kích thước</h3>
-              <div className="size-options">
-                {product.sizes.map(size => (
-                  <button
-                    key={size}
-                    className={`size-option ${selectedSize === size ? 'selected' : ''}`}
-                    onClick={() => setSelectedSize(size)}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* MÀU */}
+            {product.colors?.length > 0 && (
+              <div className="variant-section">
+                <h3 className="variant-title">Màu sắc</h3>
 
+                <div className="color-options" style={{ display: "flex", gap: "10px" }}>
+                  {product.colors.map((c: any) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedColor(c.id)}
+                      className={`color-option ${selectedColor === c.id ? "selected" : ""}`}
+                      style={{
+                        width: "35px",
+                        height: "35px",
+                        borderRadius: "50%",
+                        border: selectedColor === c.id ? "3px solid black" : "1px solid #ccc",
+                        backgroundColor: c.hex ?? "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {!c.hex && (
+                        <span style={{ fontSize: "12px", color: "#000" }}>{c.name}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+
+            {/* SIZE */}
+            {product.sizes?.length > 0 && (
+              <div className="variant-section">
+                <h3 className="variant-title">Kích thước</h3>
+
+                <div className="size-options" style={{ display: "flex", gap: "10px" }}>
+                  {product.sizes.map((s: any) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedSize(s.id)}
+                      className={`size-option ${selectedSize === s.id ? "selected" : ""}`}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "6px",
+                        border: selectedSize === s.id ? "2px solid black" : "1px solid #ccc",
+                        background: selectedSize === s.id ? "black" : "white",
+                        color: selectedSize === s.id ? "white" : "black",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        minWidth: "50px",
+                        textAlign: "center",
+                      }}
+                    >
+                      {s.name ?? `Size ${s.id}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+
+            {/* SỐ LƯỢNG */}
             <div className="quantity-section">
               <h3 className="variant-title">Số lượng</h3>
               <div className="quantity-controls">
-                <button 
+                <button
                   className="quantity-btn"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
                 >
                   −
                 </button>
                 <span className="quantity-display">{quantity}</span>
-                <button 
+                <button
                   className="quantity-btn"
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  disabled={quantity >= product.stock}
+                  onClick={() => setQuantity(quantity + 1)}
                 >
                   +
                 </button>
               </div>
-              <p className="stock-info">
-                <span className="stock-icon">📦</span>
-                Còn {product.stock} sản phẩm
-              </p>
             </div>
 
+            {/* NÚT */}
             <div className="action-buttons">
-              <button 
-                className={`add-to-cart-btn ${isAdding ? 'loading' : ''}`}
+              <button
+                className={`add-to-cart-btn ${isAdding ? "loading" : ""}`}
                 onClick={handleAddToCart}
                 disabled={isAdding}
               >
-                {isAdding ? (
-                  <>
-                    <span className="loading-spinner"></span>
-                    Đang thêm...
-                  </>
-                ) : (
-                  <>
-                    🛒 Thêm vào giỏ hàng
-                  </>
-                )}
+                {isAdding ? "Đang thêm..." : "🛒 Thêm vào giỏ hàng"}
               </button>
-              
-              <button className="buy-now-btn">
-                💳 Mua ngay
-              </button>
+
+              <button className="buy-now-btn">💳 Mua ngay</button>
             </div>
 
-            <div className="product-features">
-              <div className="feature-item">
-                <span className="feature-icon">🚚</span>
-                <span>Miễn phí vận chuyển</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🔄</span>
-                <span>Đổi trả trong 30 ngày</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🛡️</span>
-                <span>Bảo hành 12 tháng</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
