@@ -26,6 +26,10 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function reviews(){
+        return $this->hasMany(Review::class)->where('status', 1)->orderBy('created_at', 'desc');
+    }
+
     public function getStatusLabelAttribute()
     {
         return match($this->status) {
