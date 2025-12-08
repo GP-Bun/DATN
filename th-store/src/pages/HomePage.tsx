@@ -1,6 +1,30 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import api from '../api/api';
 
 export default function HomePage() {
+  const [banners, setBanners] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHomeData = async () => {
+      try {
+        const res = await api.get('/home');
+        setBanners(res.data.banners || []);
+        setProducts(res.data.featured_products || []);
+        setCategories(res.data.featured_categories || []);
+      } catch (err) {
+        console.error('Lỗi khi tải dữ liệu trang chủ:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHomeData();
+  }, []);
+
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -14,7 +38,7 @@ export default function HomePage() {
               Khám phá thế giới mua sắm tuyệt vời với những sản phẩm chất lượng cao
             </p>
             <p className="hero-description">
-              Tìm kiếm những sản phẩm chất lượng cao với giá cả hợp lý. 
+              Tìm kiếm những sản phẩm chất lượng cao với giá cả hợp lý.
               Trải nghiệm mua sắm trực tuyến tốt nhất tại TH Store.
             </p>
             <div className="hero-actions">
@@ -23,25 +47,34 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+
+          {/* Banner images từ API */}
           <div className="hero-image">
             <div className="hero-image-container">
-              <img 
-                src="https://bizweb.dktcdn.net/100/347/092/files/giay-sneaker-la-gi-1.jpg?v=1599104032003" 
-                alt="Shopping Experience" 
-                className="hero-img"
-              />
-              <div className="floating-card card-1">
-                <span className="card-icon">📦</span>
-                <span>Miễn phí vận chuyển</span>
-              </div>
-              <div className="floating-card card-2">
-                <span className="card-icon">⭐</span>
-                <span>Đánh giá 5 sao</span>
-              </div>
-              <div className="floating-card card-3">
-                <span className="card-icon">🔒</span>
-                <span>Thanh toán an toàn</span>
-              </div>
+              {loading ? (
+                <p>Đang tải banner...</p>
+              ) : banners.length > 0 ? (
+                banners.map((b: any) => {
+                  const getBannerUrl = () => {
+                    if (b.image) {
+                      return b.image.startsWith('http') ? b.image : `http://127.0.0.1:8000/storage/${b.image}`;
+                    }
+                    return "https://bizweb.dktcdn.net/100/347/092/files/giay-sneaker-la-gi-1.jpg?v=1599104032003";
+                  };
+                  
+                  return (
+                    <a key={b.id as number} href={b.link as string || '#'}>
+                      <img src={getBannerUrl()} alt={`banner-${b.id as number}`} className="hero-img" />
+                    </a>
+                  );
+                })
+              ) : (
+                <img
+                  src="https://bizweb.dktcdn.net/100/347/092/files/giay-sneaker-la-gi-1.jpg?v=1599104032003"
+                  alt="Shopping Experience"
+                  className="hero-img"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -54,64 +87,70 @@ export default function HomePage() {
           <p className="section-subtitle">Những sản phẩm được yêu thích nhất</p>
         </div>
         <div className="products-grid">
-          <div className="product-card">
-            <div className="product-image">
-              <img src="https://bizweb.dktcdn.net/100/479/837/files/giay-sneaker-catsofa-loang-mau-hong-6.jpg?v=1683452738991" alt="Áo thun nam" />
-              <div className="product-overlay">
-                <Link to="/san-pham/1" className="quick-view-btn">👁️ Xem nhanh</Link>
+          {loading ? (
+            <p>Đang tải sản phẩm...</p>
+          ) : products.length > 0 ? (
+            products.map((p: any) => {
+              const getImageUrl = () => {
+                if (p.thumbnail) {
+                  return `http://127.0.0.1:8000/storage/${p.thumbnail}`;
+                }
+                if (p.image) {
+                  return p.image.startsWith('http') ? p.image : `http://127.0.0.1:8000/storage/${p.image}`;
+                }
+                return "https://cdn-icons-png.flaticon.com/512/1828/1828817.png";
+              };
+              
+              return (
+              <div className="product-card" key={p.id as number}>
+                <div className="product-image">
+                  <img
+                    src={getImageUrl()}
+                    alt={p.name}
+                  />
+                  <div className="product-overlay">
+                    <Link to={`/san-pham/${p.id as number}`} className="quick-view-btn">👁️ Xem nhanh</Link>
+                  </div>
+                </div>
+                <div className="product-info">
+                  <h3>{p.name as string}</h3>
+                  <p className="product-price">{Number(p.price as number).toLocaleString()}đ</p>
+                  <div className="product-rating">
+                    {/* Nếu API không có reviews, hiển thị 0 */}
+                    <span>⭐⭐⭐⭐⭐</span>
+                    <span>({p.reviews as number || 0} đánh giá)</span>
+                  </div>
+                  <Link to={`/san-pham/${p.id as number}`} className="product-link">Xem chi tiết</Link>
+                </div>
               </div>
-            </div>
-            <div className="product-info">
-              <h3>Giày</h3>
-              <p className="product-price">299.000đ</p>
-              <div className="product-rating">
-                <span>⭐⭐⭐⭐⭐</span>
-                <span>(128 đánh giá)</span>
-              </div>
-              <Link to="/san-pham/1" className="product-link">Xem chi tiết</Link>
-            </div>
-          </div>
-          
-          <div className="product-card">
-            <div className="product-image">
-              <img src="https://img.lovepik.com/element/40144/8398.png_1200.png" alt="Quần jean nữ" />
-              <div className="product-overlay">
-                <Link to="/san-pham/2" className="quick-view-btn">👁️ Xem nhanh</Link>
-              </div>
-            </div>
-            <div className="product-info">
-              <h3>Quần jean nữ</h3>
-              <p className="product-price">599.000đ</p>
-              <div className="product-rating">
-                <span>⭐⭐⭐⭐⭐</span>
-                <span>(95 đánh giá)</span>
-              </div>
-              <Link to="/san-pham/2" className="product-link">Xem chi tiết</Link>
-            </div>
-          </div>
-          
-          <div className="product-card">
-            <div className="product-image">
-              <img src="https://png.pngtree.com/png-vector/20230501/ourlarge/pngtree-a-pair-of-sneakers-png-image_7078507.png" alt="Giày thể thao" />
-              <div className="product-overlay">
-                <Link to="/san-pham/3" className="quick-view-btn">👁️ Xem nhanh</Link>
-              </div>
-            </div>
-            <div className="product-info">
-              <h3>Giày thể thao</h3>
-              <p className="product-price">1.299.000đ</p>
-              <div className="product-rating">
-                <span>⭐⭐⭐⭐⭐</span>
-                <span>(203 đánh giá)</span>
-              </div>
-              <Link to="/san-pham/3" className="product-link">Xem chi tiết</Link>
-            </div>
-          </div>
+              );
+            })
+          ) : (
+            <p>Không có sản phẩm nào</p>
+          )}
+
         </div>
         <div className="view-all-section">
           <Link to="/san-pham" className="btn-outline">Xem tất cả sản phẩm →</Link>
         </div>
       </section>
+
+      {/* Featured Categories */}
+      {categories.length > 0 && (
+        <section className="featured-categories">
+          <div className="section-header">
+            <h2 className="section-title">Danh mục nổi bật</h2>
+            <p className="section-subtitle">Khám phá các danh mục sản phẩm phổ biến</p>
+          </div>
+          <div className="categories-grid">
+            {categories.map((cat: any) => (
+              <Link key={cat.id} to={`/san-pham?category=${cat.name}`} className="category-card">
+                <h3>{cat.name}</h3>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Features Section */}
       <section className="features-section">
@@ -143,5 +182,5 @@ export default function HomePage() {
         </div>
       </section>
     </div>
-  )
+  );
 }
