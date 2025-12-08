@@ -20,8 +20,11 @@ class OrderController extends Controller
     }
 
     public function update(Request $request, Order $order){
-        $request->validate(['status'=>'required|string']);
-        $order->update(['status'=>$request->status]);
+        $request->validate([
+            'order_status' => 'required|in:pending,processing,shipped,delivered,cancelled'
+        ]);
+
+        $order->update(['order_status' => $request->order_status]);
         return redirect()->back()->with('success','Cập nhật trạng thái thành công!');
     }
 
