@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -14,6 +15,20 @@ class ProductController extends Controller
         $products = Product::with(['category'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
+
+        // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
+        $products->getCollection()->transform(function ($product) {
+            if ($product->thumbnail) {
+                $product->thumbnail_url = url('storage/' . $product->thumbnail);
+                $product->thumbnail = url('storage/' . $product->thumbnail);
+            }
+            if ($product->images && is_array($product->images)) {
+                $product->images = array_map(function ($img) {
+                    return url('storage/' . $img);
+                }, $product->images);
+            }
+            return $product;
+        });
 
         return response()->json($products);
     }
@@ -49,9 +64,19 @@ class ProductController extends Controller
                 if (!$size) return null;
                 return [
                     'id' => $size->id,
-                    'name' => $size->name
+                    'value' => $size->value, // Giá trị size thực tế (22, 23, 24...)
+                    'name' => (string)$size->value // Để tương thích với frontend
                 ];
             })->filter()->values();
+
+        // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
+        $thumbnailUrl = $product->thumbnail ? url('storage/' . $product->thumbnail) : null;
+        $imagesUrls = [];
+        if ($product->images && is_array($product->images)) {
+            $imagesUrls = array_map(function ($img) {
+                return url('storage/' . $img);
+            }, $product->images);
+        }
 
         return response()->json([
             'id' => $product->id,
@@ -60,9 +85,10 @@ class ProductController extends Controller
             'description' => $product->description,
             'price' => $product->price,
 
-            // Ảnh đại diện
-            'image' => $product->thumbnail,
-            'images' => $product->images,
+            // Ảnh đại diện - trả về cả đường dẫn gốc và URL đầy đủ
+            'thumbnail' => $thumbnailUrl,
+            'image' => $thumbnailUrl, // Tương thích với code cũ
+            'images' => $imagesUrls,
 
             'category' => $product->category,
 
