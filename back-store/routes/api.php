@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\ProductController as ApiProductController;
 use App\Http\Controllers\Api\ColorController;
 use App\Http\Controllers\Api\CartController; 
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\HomeController;
 
 // Test API
 Route::get('/test', fn() => response()->json(['message' => 'API OK!']));
@@ -79,3 +81,13 @@ Route::post('/checkout', [CheckoutController::class, 'checkout']);
 
 // COLORS
 Route::apiResource('colors', ColorController::class)->only(['index','store','destroy']);
+
+// HOME API
+Route::get('/home', [HomeController::class, 'index']);
+
+// REVIEWS API
+Route::prefix('products/{productId}/reviews')->group(function () {
+    Route::get('/', [ReviewController::class, 'index']); // Lấy danh sách đánh giá (public)
+    Route::post('/', [ReviewController::class, 'store']); // Thêm đánh giá (có thể không cần auth)
+    Route::delete('/{id}', [ReviewController::class, 'destroy'])->middleware('auth:sanctum'); // Xóa đánh giá (cần auth)
+});
