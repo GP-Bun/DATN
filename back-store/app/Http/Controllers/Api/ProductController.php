@@ -60,8 +60,8 @@ class ProductController extends Controller
             'description' => $product->description,
             'price' => $product->price,
 
-            // 🟨 Fix lỗi: đổi thumbnail → image
-            'image' => $product->image,
+            // Ảnh đại diện
+            'image' => $product->thumbnail,
             'images' => $product->images,
 
             'category' => $product->category,

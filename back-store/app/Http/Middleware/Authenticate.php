@@ -11,9 +11,8 @@ class Authenticate extends Middleware
     {
         // Nếu request là API → trả về JSON 401
         if ($request->expectsJson()) {
-            return response()->json([
-                'message' => 'Unauthorized – Bạn chưa đăng nhập!'
-            ], 401);
+            // Trả về null để Laravel tự trả 401 JSON thay vì Response object
+            return null;
         }
 
         // Nếu là request web → redirect về trang login web
