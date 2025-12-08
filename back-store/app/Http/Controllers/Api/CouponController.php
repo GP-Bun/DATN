@@ -31,8 +31,6 @@ class CouponController extends Controller
 
         $discount = $coupon->calculateDiscount((float) $data['amount']);
 
-        // Lưu tạm tăng used_count nếu muốn (thông thường tăng khi order hoàn tất) - ở đây không tăng tự động
-
         return response()->json([
             'ok' => true,
             'discount' => $discount,
