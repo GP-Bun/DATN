@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Cart;
 use Illuminate\Support\Facades\DB;
 
 class CheckoutController extends Controller
@@ -11,56 +14,56 @@ class CheckoutController extends Controller
     public function checkout(Request $request)
     {
         $request->validate([
-            'customer_name' => 'required|string',
-            'customer_phone' => 'required|string',
-            'customer_address' => 'required|string',
-            'items' => 'required|array',
+            'address_id' => 'required|exists:addresses,id',
         ]);
+
+        $user = $request->user();
+
+        // Lấy giỏ hàng của user
+        $cart = Cart::where('user_id', $user->id)->with('items.product', 'items.variant')->first();
+
+        if (!$cart || $cart->items->isEmpty()) {
+            return response()->json(['message' => 'Giỏ hàng trống'], 400);
+        }
 
         DB::beginTransaction();
         try {
+            // Tính tổng tiền
+            $total = $cart->items->sum(fn($item) => $item->quantity * $item->price);
 
-            // Lưu đơn hàng
-            $orderId = DB::table('orders')->insertGetId([
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_address' => $request->customer_address,
-                'order_status' => 'pending',
-                'total_price' => collect($request->items)->sum(function ($i) {
-                    return $i['price'] * $i['quantity'];
-                }),
-                'created_at' => now(),
-                'updated_at' => now(),
+            // Tạo đơn hàng
+            $order = Order::create([
+                'user_id'        => $user->id,
+                'address_id'     => $request->address_id,
+                'order_status'   => 'pending',
+                'payment_status' => 'unpaid',
+                'total_amount'   => $total,
             ]);
 
-            // Lưu sản phẩm trong đơn hàng
-            foreach ($request->items as $item) {
-                DB::table('order_items')->insert([
-                    'order_id' => $orderId,
-                    'product_id' => $item['product_id'],
-                    'name' => $item['name'],
-                    'price' => $item['price'],
-                    'quantity' => $item['quantity'],
-                    'color' => $item['color'] ?? null,
-                    'size' => $item['size'] ?? null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+            // Tạo order_items từ cart_items
+            foreach ($cart->items as $cartItem) {
+                OrderItem::create([
+                    'order_id'     => $order->id,
+                    'product_id'   => $cartItem->product_id,
+                    'variant_id'   => $cartItem->variant_id,
+                    'product_name' => $cartItem->product->name ?? 'Sản phẩm',
+                    'quantity'     => $cartItem->quantity,
+                    'price'        => $cartItem->price,
                 ]);
             }
+
+            // Xóa giỏ hàng sau khi checkout
+            $cart->items()->delete();
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Đặt hàng thành công!',
-                'order_id' => $orderId
+                'message' => 'Đặt hàng thành công',
+                'order'   => $order->load('items', 'address')
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Lỗi đặt hàng!',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Có lỗi xảy ra khi đặt hàng', 'error' => $e->getMessage()], 500);
         }
     }
 }

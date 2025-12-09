@@ -60,6 +60,7 @@ class AuthController extends Controller
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
         }
+        
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

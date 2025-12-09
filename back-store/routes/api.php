@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\HomeController;
 // use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\OrderController;
 
 
 // Route::get('/home', [HomeController::class, 'index']);
@@ -72,16 +73,29 @@ Route::prefix('products')->group(function () {
 });
 
 // CART API (PUBLIC)
-Route::prefix('cart')->group(function () {
-    Route::get('/', [CartController::class, 'index']);
-    Route::post('/', [CartController::class, 'add']);
-    Route::put('/{item}', [CartController::class, 'update']);
-    Route::delete('/{item}', [CartController::class, 'remove']);
-    Route::delete('/', [CartController::class, 'clear']);
+Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index']);       
+    Route::post('/', [CartController::class, 'add']);        
+    Route::put('/{item}', [CartController::class, 'update']); 
+    Route::delete('/{item}', [CartController::class, 'remove']); 
+    Route::delete('/', [CartController::class, 'clear']);    
 });
 
+
 // CHECKOUT API
-Route::post('/checkout', [CheckoutController::class, 'checkout']);
+Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('auth:sanctum');;
+
+// USER — cần đăng nhập
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/orders', [OrderController::class, 'index']);       // Lấy danh sách đơn hàng của user
+    Route::get('/orders/{order}', [OrderController::class, 'show']); // Xem chi tiết đơn hàng
+});
+
+// ADMIN — quản lý đơn hàng
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus']); // Cập nhật trạng thái
+    Route::delete('/orders/{order}', [OrderController::class, 'destroy']);          // Xóa đơn hàng
+});
 
 // COLORS
 Route::apiResource('colors', ColorController::class)->only(['index','store','destroy']);
