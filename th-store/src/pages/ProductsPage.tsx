@@ -53,11 +53,14 @@ export default function ProductsPage() {
   if (loading) return <p>Đang tải sản phẩm...</p>
 
   const getImage = (product: any) => {
-    if (product.thumbnail)
-      return `http://127.0.0.1:8000/storage/${product.thumbnail}`
-
-    return "/placeholder.png"
+    if (product.thumbnail) {
+      return product.thumbnail.startsWith("http")
+        ? product.thumbnail
+        : `http://127.0.0.1:8000/storage/${product.thumbnail}`;
+    }
+    return "/placeholder.png";
   }
+
 
   return (
     <div className="main">

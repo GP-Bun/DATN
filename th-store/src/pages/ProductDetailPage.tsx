@@ -333,6 +333,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
+            
             {/* SIZE */}
             {product.sizes?.length > 0 && (
               <div className="variant-section">
@@ -369,7 +370,7 @@ export default function ProductDetailPage() {
                           </span>
                           {isAvailable ? (
                             <span className={`size-stock ${isSelected ? "selected" : ""}`}>
-                              {stock} sp
+                            {stock} sản phẩm
                             </span>
                           ) : (
                             <span className="size-out-of-stock">Hết hàng</span>
