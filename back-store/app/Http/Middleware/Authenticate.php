@@ -9,13 +9,14 @@ class Authenticate extends Middleware
 {
     protected function redirectTo($request)
     {
-        // Nếu request là API → trả về JSON 401
-        if ($request->expectsJson()) {
-            // Trả về null để Laravel tự trả 401 JSON thay vì Response object
+        // Nếu request API => trả 401 JSON
+        if ($request->expectsJson() || $request->is('api/*')) {
             return null;
         }
-
-        // Nếu là request web → redirect về trang login web
-        return route('login');
+    
+        // Nếu có login web thì trả về route login
+        // Nếu không có thì trả null luôn
+        return null;
     }
+    
 }

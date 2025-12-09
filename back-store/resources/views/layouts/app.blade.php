@@ -89,6 +89,32 @@
             font-weight: 500;
         }
 
+        /* Sidebar Toggle Button */
+        #sidebar-toggle {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background-color: transparent;
+            color: #f8fafc;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+        }
+
+        #sidebar-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #fff;
+        }
+
+        #sidebar-toggle i {
+            font-size: 20px;
+        }
+
         .alert {
             border-radius: 10px;
         }
