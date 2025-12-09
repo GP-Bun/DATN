@@ -15,7 +15,8 @@ import {
   ProductsPage, 
   ProductDetailPage, 
   CartPage, 
-  CheckoutPage, 
+  CheckoutPage,
+  OrderSuccessPage,
   LoginPage, 
   RegisterPage 
 } from './pages';
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
       { path: 'san-pham/:id', element: <ProductDetailPage /> },
       { path: 'gio-hang', element: <CartPage /> },
       { path: 'thanh-toan', element: <CheckoutPage /> },
+      { path: 'dat-hang-thanh-cong', element: <OrderSuccessPage /> },
       { path: 'dang-nhap', element: <LoginPage /> },
       { path: 'dang-ky', element: <RegisterPage /> },
       { path: 'test-api', element: <TestApiPage /> },
@@ -78,13 +80,20 @@ const router = createBrowserRouter([
   },
 ]);
 
-const rootElement = document.getElementById('root')!;
-createRoot(rootElement).render(
-  <React.StrictMode>
+// Wrapper component để đảm bảo providers được mount đúng cách
+function App() {
+  return (
     <AuthProvider>
       <CartProvider>
         <RouterProvider router={router} />
       </CartProvider>
     </AuthProvider>
+  );
+}
+
+const rootElement = document.getElementById('root')!;
+createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
   </React.StrictMode>
 );
