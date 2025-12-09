@@ -8,10 +8,15 @@ use App\Models\Size;
 
 class SizeController extends Controller
 {
+
     public function store(Request $request)
     {
         $request->validate([
             'value' => 'required|integer|unique:sizes,value',
+        ], [
+            'value.required' => 'Bạn phải nhập size.',
+            'value.integer'  => 'Size phải là số.',
+            'value.unique'   => 'Size này đã tồn tại rồi.',
         ]);
 
         Size::create($request->only('value'));

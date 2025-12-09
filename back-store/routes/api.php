@@ -11,6 +11,10 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\HomeController;
+// use App\Http\Controllers\Api\HomeController;
+
+
+// Route::get('/home', [HomeController::class, 'index']);
 
 // Test API
 Route::get('/test', fn() => response()->json(['message' => 'API OK!']));

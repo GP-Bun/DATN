@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Size;
+
 
 class ProductController extends Controller
 {
@@ -55,19 +57,32 @@ class ProductController extends Controller
                 ];
             })->filter()->values();
 
-        // 📏 Danh sách size không trùng (unique)
-        $sizes = $product->variants
-            ->pluck('size')
-            ->unique('id')
-            ->values()
-            ->map(function ($size) {
-                if (!$size) return null;
-                return [
-                    'id' => $size->id,
-                    'value' => $size->value, // Giá trị size thực tế (22, 23, 24...)
-                    'name' => (string)$size->value // Để tương thích với frontend
-                ];
-            })->filter()->values();
+        // // 📏 Danh sách size không trùng (unique)
+        // $sizes = $product->variants
+        //     ->pluck('size')
+        //     ->unique('id')
+        //     ->values()
+        //     ->map(function ($size) {
+        //         if (!$size) return null;
+        //         return [
+        //             'id' => $size->id,
+        //             'value' => $size->value, // Giá trị size thực tế (22, 23, 24...)
+        //             'name' => (string)$size->value // Để tương thích với frontend
+        //         ];
+        //     })->filter()->values();
+        // 📏 Danh sách size chuẩn + stock
+        $allSizes = Size::all();
+
+        $sizes = $allSizes->map(function ($size) use ($product) {
+            $variant = $product->variants->firstWhere('size_id', $size->id);
+            return [
+                'id' => $size->id,
+                'value' => $size->value,
+                'name' => (string)$size->value,
+                'stock' => $variant ? $variant->stock : 0
+            ];
+        });
+
 
         // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
         $thumbnailUrl = $product->thumbnail ? url('storage/' . $product->thumbnail) : null;
