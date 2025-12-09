@@ -38,8 +38,9 @@ class CouponController extends Controller
                 }),
             ],
 
-            'min_order_amount' => 'nullable|numeric|min:0',
-            'max_discount'     => 'nullable|numeric|min:0',
+            'min_order_amount' => 'required|numeric|min:0',
+            'max_discount'     => 'required|numeric|min:0',
+
 
             // Validate ngày
             'starts_at'        => 'required|date|after_or_equal:today',
@@ -53,21 +54,24 @@ class CouponController extends Controller
 
             'type.required' => 'Vui lòng chọn loại giảm giá.',
 
-            'value.required'=> 'Vui lòng nhập giá trị giảm.',
-            'value.numeric' => 'Giá trị giảm phải là số.',
-            'value.between' => 'Giá trị phần trăm phải từ 0 đến 99%.',
-            'value.min'     => 'Giá trị giảm cố định phải lớn hơn 0.',
+            'value.required' => 'Vui lòng nhập giá trị giảm.',
+            'value.numeric'  => 'Giá trị giảm phải là số.',
+            'value.between'  => 'Giá trị phần trăm phải từ 0 đến 99%.',
+            'value.min'      => 'Giá trị giảm cố định phải lớn hơn 0.',
 
-            'min_order_amount.numeric' => 'Đơn hàng tối thiểu phải là số.',
-            'max_discount.numeric'     => 'Giảm tối đa phải là số.',
+            'min_order_amount.required' => 'Vui lòng nhập đơn hàng tối thiểu.',
+            'min_order_amount.numeric'  => 'Đơn hàng tối thiểu phải là số.',
 
-            'starts_at.required' => 'Vui lòng nhập ngày bắt đầu.',
-            'starts_at.after_or_equal' => 'Ngày bắt đầu phải từ hôm nay trở đi.',
+            'max_discount.required'     => 'Vui lòng nhập mức giảm tối đa.',
+            'max_discount.numeric'      => 'Giảm tối đa phải là số.',
 
-            'ends_at.required'   => 'Vui lòng nhập ngày kết thúc.',
-            'ends_at.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
+            'starts_at.required'        => 'Vui lòng nhập ngày bắt đầu.',
+            'starts_at.after_or_equal'  => 'Ngày bắt đầu phải từ hôm nay trở đi.',
 
-            'usage_limit.integer' => 'Giới hạn số lần sử dụng phải là số nguyên.',
+            'ends_at.required'          => 'Vui lòng nhập ngày kết thúc.',
+            'ends_at.after_or_equal'    => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
+
+            'usage_limit.integer'       => 'Giới hạn số lần sử dụng phải là số nguyên.',
         ]);
 
         // checkbox active
@@ -101,8 +105,8 @@ class CouponController extends Controller
                 }),
             ],
 
-            'min_order_amount' => 'nullable|numeric|min:0',
-            'max_discount'     => 'nullable|numeric|min:0',
+            'min_order_amount' => 'required|numeric|min:0',
+            'max_discount'     => 'required|numeric|min:0',
 
             // Validate ngày
             'starts_at'        => 'required|date|after_or_equal:today',
@@ -116,10 +120,15 @@ class CouponController extends Controller
 
             'type.required' => 'Vui lòng chọn loại giảm giá.',
 
-            'value.required'=> 'Vui lòng nhập giá trị giảm.',
+            'value.required' => 'Vui lòng nhập giá trị giảm.',
             'value.numeric' => 'Giá trị giảm phải là số.',
             'value.between' => 'Giá trị phần trăm phải từ 0 đến 99%.',
             'value.min'     => 'Giá trị giảm cố định phải lớn hơn 0.',
+            'min_order_amount.required' => 'Vui lòng nhập đơn hàng tối thiểu.',
+            'min_order_amount.numeric'  => 'Đơn hàng tối thiểu phải là số.',
+
+            'max_discount.required'     => 'Vui lòng nhập mức giảm tối đa.',
+            'max_discount.numeric'      => 'Giảm tối đa phải là số.',
 
             'starts_at.after_or_equal' => 'Ngày bắt đầu phải từ hôm nay trở đi.',
             'ends_at.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',

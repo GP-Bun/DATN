@@ -80,6 +80,20 @@ class ProductController extends Controller
             'variants.*.stock.min' => 'Số lượng tồn kho không được nhỏ hơn 0.',
         ]);
 
+        // Kiểm tra trùng lặp color + size trong request
+        $combos = [];
+        foreach ($request->variants as $variant) {
+            foreach ($variant['sizes'] as $sizeId) {
+                $key = $variant['color_id'] . '-' . $sizeId;
+                if (in_array($key, $combos)) {
+                    return back()
+                        ->withErrors(['variants' => 'Size này đã có màu này rồi.'])
+                        ->withInput();
+                }
+                $combos[] = $key;
+            }
+        }
+
         $slug = Str::slug($request->name);
 
         if (Product::withTrashed()->where('slug', $slug)->exists()) {
@@ -183,6 +197,20 @@ class ProductController extends Controller
             'variants.*.stock.integer' => 'Số lượng tồn kho phải là số nguyên.',
             'variants.*.stock.min' => 'Số lượng tồn kho không được nhỏ hơn 0.',
         ]);
+
+        // Kiểm tra trùng lặp color + size trong request
+        $combos = [];
+        foreach ($request->variants as $variant) {
+            foreach ($variant['sizes'] as $sizeId) {
+                $key = $variant['color_id'] . '-' . $sizeId;
+                if (in_array($key, $combos)) {
+                    return back()
+                        ->withErrors(['variants' => 'Size này đã có màu này rồi.'])
+                        ->withInput();
+                }
+                $combos[] = $key;
+            }
+        }
 
         if ($request->hasFile('thumbnail')) {
             $product->thumbnail = $request->file('thumbnail')->store('products', 'public');

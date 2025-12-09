@@ -1,21 +1,25 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Session;
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 
 class CartController extends Controller
 {
     // Lấy giỏ hàng
-    public function index()
+    public function index(Request $request)
     {
-        $cart = Session::get('cart', []);
+        $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
+        $items = $cart->items()->with(['product','variant'])->get();
+        $total = $items->sum(fn($i) => $i->price * $i->quantity);
+
         return response()->json([
-            'message' => 'Lấy giỏ hàng thành công!',
-            'data' => array_values($cart)
+            'items' => $items,
+            'total' => $total
         ]);
     }
 
@@ -23,88 +27,70 @@ class CartController extends Controller
     public function add(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|integer',
-            'quantity' => 'required|integer|min:1',
-            'color' => 'nullable|string',
-            'size' => 'nullable|string',
+            'product_id' => 'required|exists:products,id',
+            'variant_id' => 'nullable|exists:product_variants,id',
+            'quantity'   => 'required|integer|min:1',
         ]);
 
-        $product = Product::find($request->product_id);
+        $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
+        $product = Product::findOrFail($request->product_id);
 
-        if (!$product) {
-            return response()->json(['message' => 'Sản phẩm không tồn tại!'], 404);
-        }
+        $price = $request->variant_id 
+            ? ProductVariant::find($request->variant_id)->price 
+            : $product->price;
 
-        $cart = Session::get('cart', []);
+        $item = CartItem::where('cart_id', $cart->id)
+            ->where('product_id', $product->id)
+            ->where('variant_id', $request->variant_id)
+            ->first();
 
-        $id = $product->id . '-' . ($request->color ?? 'default') . '-' . ($request->size ?? 'default');
-
-        if (isset($cart[$id])) {
-            $cart[$id]['quantity'] += $request->quantity;
+        if ($item) {
+            $item->quantity += $request->quantity;
+            $item->save();
         } else {
-            $cart[$id] = [
-                'id' => $id,
+            $item = CartItem::create([
+                'cart_id'    => $cart->id,
                 'product_id' => $product->id,
-                'name' => $product->name,
-                'price' => $product->price,
-                'image' => $product->thumbnail,
-                'quantity' => $request->quantity,
-                'color' => $request->color,
-                'size' => $request->size,
-            ];
+                'variant_id' => $request->variant_id,
+                'quantity'   => $request->quantity,
+                'price'      => $price,
+            ]);
         }
 
-        Session::put('cart', $cart);
-
-        return response()->json([
-            'message' => 'Đã thêm vào giỏ hàng!',
-            'data' => array_values($cart)
-        ]);
+        return response()->json(['message' => 'Đã thêm vào giỏ hàng', 'item' => $item]);
     }
 
     // Cập nhật số lượng
-    public function update(Request $request, $item)
+    public function update(Request $request, CartItem $item)
     {
-        $request->validate([
-            'quantity' => 'required|integer|min:1'
-        ]);
-
-        $cart = Session::get('cart', []);
-
-        if (!isset($cart[$item])) {
-            return response()->json(['message' => 'Item không tồn tại!'], 404);
+        if ($item->cart->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Không có quyền'], 403);
         }
 
-        $cart[$item]['quantity'] = $request->quantity;
-        Session::put('cart', $cart);
+        $request->validate(['quantity' => 'required|integer|min:1']);
+        $item->update(['quantity' => $request->quantity]);
 
-        return response()->json([
-            'message' => 'Cập nhật thành công!',
-            'data' => array_values($cart)
-        ]);
+        return response()->json(['message' => 'Cập nhật thành công', 'item' => $item]);
     }
 
-    // Xóa item
-    public function remove($item)
+    // Xóa sản phẩm
+    public function remove(Request $request, CartItem $item)
     {
-        $cart = Session::get('cart', []);
-        unset($cart[$item]);
-        Session::put('cart', $cart);
+        if ($item->cart->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Không có quyền'], 403);
+        }
 
-        return response()->json([
-            'message' => 'Xóa thành công!',
-            'data' => array_values($cart)
-        ]);
+        $item->delete();
+        return response()->json(['message' => 'Đã xóa sản phẩm']);
     }
 
-    // Xóa toàn bộ
-    public function clear()
+    // Xóa toàn bộ giỏ
+    public function clear(Request $request)
     {
-        Session::forget('cart');
-
-        return response()->json([
-            'message' => 'Đã xóa toàn bộ giỏ hàng!',
-            'data' => []
-        ]);
+        $cart = Cart::where('user_id', $request->user()->id)->first();
+        if ($cart) {
+            $cart->items()->delete();
+        }
+        return response()->json(['message' => 'Đã xóa toàn bộ giỏ hàng']);
     }
 }
