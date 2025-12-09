@@ -1,7 +1,15 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react'
+import { 
+  getCart, 
+  addToCart as apiAdd, 
+  updateCartItem as apiUpdate, 
+  removeCartItem as apiRemove, 
+  clearCart as apiClear 
+} from '../api/cart.api'
 
 export type CartItem = { 
   id: string
+  product_id: number
   name: string
   price: number
   image: string
@@ -12,12 +20,13 @@ export type CartItem = {
 
 type CartContextValue = {
   items: CartItem[]
-  addToCart: (item: Omit<CartItem, 'id'>) => void
-  removeFromCart: (id: string) => void
-  updateQuantity: (id: string, quantity: number) => void
-  clearCart: () => void
+  addToCart: (productId: number, quantity?: number, color?: string | null, size?: string | null, variantId?: number | null) => Promise<void>
+  updateCartItem: (itemId: number, quantity: number) => Promise<void>
+  removeCartItem: (itemId: number) => Promise<void>
+  clearCart: () => Promise<void>
   getTotalPrice: () => number
   getTotalItems: () => number
+  reloadCart: () => Promise<void>
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
@@ -31,58 +40,90 @@ export function useCart() {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
 
-  const addToCart = (item: Omit<CartItem, 'id'>) => {
-    const id = `${item.name}-${item.color || 'default'}-${item.size || 'default'}`
-    
-    setItems((prev) => {
-      const existing = prev.find((i) => i.id === id)
-      if (existing) {
-        return prev.map((i) =>
-          i.id === id
-            ? { ...i, quantity: i.quantity + item.quantity }
-            : i
-        )
-      }
-      return [...prev, { ...item, id }]
-    })
+  // 🔥 Load giỏ hàng từ API backend
+  const reloadCart = async () => {
+    try {
+      const res = await getCart()
+
+      // Backend trả về array items hoặc object có items
+      const list = Array.isArray(res) ? res : (res.items || res.data || [])
+
+      setItems(
+        list.map((item: any) => ({
+          id: item.id.toString(),
+          product_id: item.product?.id || item.product_id,
+          name: item.product?.name || item.name,
+          price: item.price, // Sử dụng price từ cart_item (có thể khác product.price nếu có variant)
+          // Ưu tiên: image -> thumbnail_url -> thumbnail -> images[0]
+          image: item.product?.image || 
+                 item.product?.thumbnail_url || 
+                 (item.product?.thumbnail ? `http://127.0.0.1:8000/storage/${item.product.thumbnail}` : null) ||
+                 (item.product?.images && item.product.images.length > 0 
+                   ? (item.product.images[0].startsWith('http') 
+                       ? item.product.images[0] 
+                       : `http://127.0.0.1:8000/storage/${item.product.images[0]}`)
+                   : null) ||
+                 item.image ||
+                 null,
+          quantity: item.quantity,
+          color: item.variant?.color?.name || item.color || null,
+          size: item.variant?.size?.value || item.size || null
+        }))
+      )
+    } catch (e) {
+      console.error('Lỗi load cart:', e)
+      setItems([])
+    }
   }
 
-  const removeFromCart = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+  useEffect(() => {
+    reloadCart()
+  }, [])
+
+  // 🔥 Thêm vào giỏ hàng (backend)
+  const addToCart = async (productId: number, quantity = 1, color?: string | null, size?: string | null, variantId?: number | null) => {
+    await apiAdd(productId, quantity, variantId || undefined)
+    await reloadCart()
   }
 
-  const updateQuantity = (id: string, quantity: number) => {
+  // 🔥 Cập nhật số lượng
+  const updateCartItem = async (itemId: number, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(id)
+      await removeCartItem(itemId)
       return
     }
-    
-    setItems((prev) => prev.map((i) =>
-      i.id === id ? { ...i, quantity } : i
-    ))
+    await apiUpdate(itemId, quantity)
+    await reloadCart()
   }
 
-  const clearCart = () => setItems([])
-
-  const getTotalPrice = () => {
-    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  // 🔥 Xóa một item
+  const removeCartItem = async (itemId: number) => {
+    await apiRemove(itemId)
+    await reloadCart()
   }
 
-  const getTotalItems = () => {
-    return items.reduce((sum, item) => sum + item.quantity, 0)
+  // 🔥 Xóa toàn bộ giỏ hàng
+  const clearCart = async () => {
+    await apiClear()
+    setItems([])
   }
 
-  const value = useMemo(() => ({ 
-    items, 
-    addToCart, 
-    removeFromCart, 
-    updateQuantity, 
-    clearCart, 
-    getTotalPrice, 
-    getTotalItems 
-  }), [items])
+  const getTotalPrice = () => items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const getTotalItems = () => items.reduce((sum, i) => sum + i.quantity, 0)
+
+  const value = useMemo(
+    () => ({
+      items,
+      addToCart,
+      updateCartItem,
+      removeCartItem,
+      clearCart,
+      getTotalPrice,
+      getTotalItems,
+      reloadCart
+    }),
+    [items]
+  )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
-
-

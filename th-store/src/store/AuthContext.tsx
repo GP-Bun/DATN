@@ -30,9 +30,9 @@ export function useAuth() {
 const userApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" });
 const adminApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" });
 
-// Interceptor user token
+// Interceptor user token - kiểm tra cả localStorage và sessionStorage
 userApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("user_token");
+  const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -56,10 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await userApi.post<{ user: User; access_token: string }>("/login", { email, password });
       setUser(res.data.user);
 
+      // Luôn lưu token để có thể gọi API
+      // Nếu remember = true: lưu vào localStorage (persist)
+      // Nếu remember = false: lưu vào sessionStorage (chỉ trong session)
       if (remember) {
         localStorage.setItem("user_token", res.data.access_token);
+        sessionStorage.removeItem("user_token"); // Xóa sessionStorage nếu có
+      } else {
+        sessionStorage.setItem("user_token", res.data.access_token);
       }
-      // nếu không tick remember thì không lưu token → reload sẽ đăng xuất
     } catch (err: any) {
       throw err.response?.data || { message: "Login User thất bại" };
     }
@@ -76,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logoutUser = () => {
     setUser(null);
     localStorage.removeItem("user_token");
+    sessionStorage.removeItem("user_token");
   };
 
   // -------------------- Admin --------------------
@@ -107,7 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // -------------------- Init Auth --------------------
   useEffect(() => {
     const initAuth = async () => {
-      const userToken = localStorage.getItem("user_token");
+      // Kiểm tra token từ cả localStorage và sessionStorage
+      const userToken = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
       const adminToken = localStorage.getItem("admin_token");
 
       if (userToken) {
@@ -116,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(res.data.user);
         } catch {
           localStorage.removeItem("user_token");
+          sessionStorage.removeItem("user_token");
         }
       }
 

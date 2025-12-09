@@ -14,10 +14,27 @@ class CartController extends Controller
     public function index(Request $request)
     {
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
-        $items = $cart->items()->with(['product','variant'])->get();
+        $items = $cart->items()->with(['product', 'variant.color', 'variant.size'])->get();
+        
+        // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
+        $items->transform(function ($item) {
+            if ($item->product) {
+                // Chuyển đổi thumbnail thành URL đầy đủ
+                if ($item->product->thumbnail) {
+                    $item->product->image = url('storage/' . $item->product->thumbnail);
+                    $item->product->thumbnail_url = url('storage/' . $item->product->thumbnail);
+                } elseif ($item->product->images && is_array($item->product->images) && count($item->product->images) > 0) {
+                    // Nếu không có thumbnail, lấy ảnh đầu tiên
+                    $item->product->image = url('storage/' . $item->product->images[0]);
+                }
+            }
+            return $item;
+        });
+        
         $total = $items->sum(fn($i) => $i->price * $i->quantity);
 
         return response()->json([
+            'data' => $items,
             'items' => $items,
             'total' => $total
         ]);
@@ -35,9 +52,14 @@ class CartController extends Controller
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
         $product = Product::findOrFail($request->product_id);
 
-        $price = $request->variant_id 
-            ? ProductVariant::find($request->variant_id)->price 
-            : $product->price;
+        // Lấy giá: nếu có variant thì dùng giá variant (sale_price nếu có, không thì original_price)
+        // Nếu không có variant thì dùng giá product
+        if ($request->variant_id) {
+            $variant = ProductVariant::findOrFail($request->variant_id);
+            $price = $variant->sale_price ?? $variant->original_price;
+        } else {
+            $price = $product->price;
+        }
 
         $item = CartItem::where('cart_id', $cart->id)
             ->where('product_id', $product->id)

@@ -1,33 +1,65 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
+import { useCart } from '../store/CartContext'
 
 export default function AppLayout() {
   const { user, logoutUser } = useAuth()
+  const { getTotalItems } = useCart()
+  
+  const handleLogout = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn đăng xuất không?')) {
+      await logoutUser()
+      alert('Đăng xuất thành công!')
+    }
+  }
+
   return (
     <div className="app-container">
       <header className="header">
         <div className="brand">
-          <Link to="/">TH</Link>
+          <Link to="/">
+            <span style={{ fontSize: '28px', fontWeight: '800' }}>👟</span>
+            <span style={{ marginLeft: '8px' }}>TH Store</span>
+          </Link>
         </div>
         <nav className="nav">
-          <NavLink to="/">Trang chủ</NavLink>
-          <NavLink to="/san-pham">Sản phẩm</NavLink>
-          <NavLink to="/gio-hang">Giỏ hàng</NavLink>
-          <NavLink to="/thanh-toan">Thanh toán</NavLink>
+          <NavLink to="/" className="nav-link">
+            <span className="nav-icon">🏠</span>
+            <span>Trang chủ</span>
+          </NavLink>
+          <NavLink to="/san-pham" className="nav-link">
+            <span className="nav-icon">🛍️</span>
+            <span>Sản phẩm</span>
+          </NavLink>
+          <NavLink to="/gio-hang" className="nav-link nav-link-cart">
+            <span className="nav-icon">🛒</span>
+            <span>Giỏ hàng</span>
+            {getTotalItems() > 0 && (
+              <span className="cart-badge">{getTotalItems()}</span>
+            )}
+          </NavLink>
+          <NavLink to="/thanh-toan" className="nav-link">
+            <span className="nav-icon">💳</span>
+            <span>Thanh toán</span>
+          </NavLink>
           {user ? (
             <button
-              onClick={async () => {
-                await logoutUser()
-                alert('Đăng xuất thành công!')
-              }}
-              
+              onClick={handleLogout}
+              className="nav-link nav-link-button"
             >
-              Đăng xuất ({user.name})
+              <span className="nav-icon">👤</span>
+              <span>Đăng xuất ({user.name})</span>
             </button>
           ) : (
             <>
-              <NavLink to="/dang-nhap">Đăng nhập</NavLink>
-              <NavLink to="/dang-ky">Đăng ký</NavLink>
+              <NavLink to="/dang-nhap" className="nav-link">
+                <span className="nav-icon">🔐</span>
+                <span>Đăng nhập</span>
+              </NavLink>
+              <NavLink to="/dang-ky" className="nav-link nav-link-primary">
+                <span className="nav-icon">✏️</span>
+                <span>Đăng ký</span>
+              </NavLink>
             </>
           )}
         </nav>

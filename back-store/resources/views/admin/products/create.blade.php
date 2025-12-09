@@ -126,12 +126,18 @@
                 @endforeach
             </div>
 
-            <div class="mb-3 d-flex gap-2">
-                <button type="button" class="btn btn-primary" id="add-variant">+ Thêm biến thể</button>
+            <div class="mb-3 d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-primary" id="add-variant" style="min-width: 150px;">
+                    <i class="bi bi-plus-circle"></i> Thêm biến thể
+                </button>
                 <button type="button" class="btn btn-outline-success" data-bs-toggle="modal"
-                    data-bs-target="#modalAddColor">+ Thêm màu</button>
-                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalAddSize">+
-                    Thêm size</button>
+                    data-bs-target="#modalAddColor" style="min-width: 150px;">
+                    <i class="bi bi-palette"></i> Thêm màu
+                </button>
+                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" 
+                    data-bs-target="#modalAddSize" style="min-width: 150px;">
+                    <i class="bi bi-rulers"></i> Thêm size
+                </button>
             </div>
 
             <div class="mt-3">

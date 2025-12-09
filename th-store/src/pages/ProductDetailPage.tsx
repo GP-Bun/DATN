@@ -1,11 +1,15 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getProductDetail } from "../api/productDetail.api";
-import { addToCart } from "../api/cart.api";
+import { useCart } from "../store/CartContext";
+import { useAuth } from "../store/AuthContext";
 import { getProductReviews, createReview, type Review } from "../api/review.api";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
@@ -96,8 +100,21 @@ export default function ProductDetailPage() {
   );
 
   const handleAddToCart = async () => {
+    // Kiểm tra user đã đăng nhập chưa
+    if (!user) {
+      const confirmLogin = confirm("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng. Bạn có muốn đăng nhập ngay không?");
+      if (confirmLogin) {
+        navigate("/dang-nhap");
+      }
+      return;
+    }
+
     if (!selectedVariant) {
       alert("Vui lòng chọn màu và kích thước hợp lệ!");
+      return;
+    }
+    if (!product) {
+      alert("Không tìm thấy sản phẩm!");
       return;
     }
     if (quantity > (selectedVariant.stock ?? 0)) {
@@ -107,18 +124,33 @@ export default function ProductDetailPage() {
 
     setIsAdding(true);
     try {
+      // Gửi product_id (product.id) và variant_id (selectedVariant.id)
       await addToCart(
-        selectedVariant.id,
+        product.id, // product_id
         quantity,
         selectedColor?.toString() ?? null,
-        selectedSize?.toString() ?? null
+        selectedSize?.toString() ?? null,
+        selectedVariant.id // variant_id
       );
+      // Không reload trang, chỉ hiển thị thông báo
+      // Giỏ hàng sẽ tự động cập nhật qua CartContext
       alert("🛒 Đã thêm vào giỏ hàng!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Lỗi thêm giỏ hàng:", err);
-      alert("Lỗi khi thêm vào giỏ!");
+      const errorMessage = err?.response?.data?.message || "Lỗi khi thêm vào giỏ!";
+      
+      // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
+      if (errorMessage.includes("Unauthenticated") || err?.response?.status === 401) {
+        const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn. Bạn có muốn đăng nhập lại không?");
+        if (confirmLogin) {
+          navigate("/dang-nhap");
+        }
+      } else {
+        alert(errorMessage);
+      }
+    } finally {
+      setIsAdding(false);
     }
-    setIsAdding(false);
   };
 
   // Xử lý submit đánh giá
