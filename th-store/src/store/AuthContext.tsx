@@ -54,6 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginUser = async (email: string, password: string, remember = false) => {
     try {
       const res = await userApi.post<{ user: User; access_token: string }>("/login", { email, password });
+      
+      // Kiểm tra response có đầy đủ dữ liệu không
+      if (!res.data.user || !res.data.access_token) {
+        throw { message: "Phản hồi từ server không hợp lệ" };
+      }
+      
       setUser(res.data.user);
 
       // Luôn lưu token để có thể gọi API
@@ -64,17 +70,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.removeItem("user_token"); // Xóa sessionStorage nếu có
       } else {
         sessionStorage.setItem("user_token", res.data.access_token);
+        localStorage.removeItem("user_token"); // Xóa localStorage nếu có
       }
     } catch (err: any) {
-      throw err.response?.data || { message: "Login User thất bại" };
+      // Trả về toàn bộ error response để frontend xử lý
+      if (err.response?.data) {
+        throw err.response.data;
+      }
+      throw { message: err.message || "Login User thất bại" };
     }
   };
 
   const registerUser = async (name: string, email: string, password: string) => {
     try {
-      await userApi.post("/register", { name, email, password });
+      const res = await userApi.post("/register", { name, email, password });
+      return res.data;
     } catch (err: any) {
-      throw err.response?.data || { message: "Đăng ký User thất bại" };
+      // Trả về toàn bộ error response để frontend xử lý
+      if (err.response?.data) {
+        throw err.response.data;
+      }
+      throw { message: "Đăng ký User thất bại", errors: {} };
     }
   };
 

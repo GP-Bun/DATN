@@ -156,12 +156,20 @@ export default function OrderSuccessPage() {
                   )}
                   <p style={{ color: '#666', marginBottom: '8px' }}>Số lượng: {item.quantity}</p>
                   <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#059669' }}>
-                    {item.price.toLocaleString('vi-VN')}đ
+                    {new Intl.NumberFormat('vi-VN', {
+                      style: 'decimal',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(item.price)}đ
                   </p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                    {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                    {new Intl.NumberFormat('vi-VN', {
+                      style: 'decimal',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(item.price * item.quantity)}đ
                   </p>
                 </div>
               </div>
@@ -169,20 +177,40 @@ export default function OrderSuccessPage() {
           </div>
 
           <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid #e5e7eb', textAlign: 'right' }}>
-            <p>Tạm tính: {subtotal.toLocaleString('vi-VN')}đ</p>
+            <p>Tạm tính: {new Intl.NumberFormat('vi-VN', {
+              style: 'decimal',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(subtotal)}đ</p>
             {order.coupon && (
               <p>
                 Voucher: <strong>{order.coupon.code}</strong> (
                 {order.coupon.type === 'percent'
                   ? `${order.coupon.value}%`
-                  : `${order.coupon.value.toLocaleString('vi-VN')}đ`}
+                  : `${new Intl.NumberFormat('vi-VN', {
+                      style: 'decimal',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(order.coupon.value)}đ`}
                 )
               </p>
             )}
-            <p>Giảm giá: {order.discount_amount.toLocaleString('vi-VN')}đ</p>
-            <p>Phí vận chuyển: {order.shipping_cost.toLocaleString('vi-VN')}đ</p>
+            <p>Giảm giá: {new Intl.NumberFormat('vi-VN', {
+              style: 'decimal',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(order.discount_amount)}đ</p>
+            <p>Phí vận chuyển: {new Intl.NumberFormat('vi-VN', {
+              style: 'decimal',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(order.shipping_cost)}đ</p>
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
-              Tổng cộng: {order.final_amount.toLocaleString('vi-VN')}đ
+              Tổng cộng: {new Intl.NumberFormat('vi-VN', {
+                style: 'decimal',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(order.final_amount)}đ
             </div>
           </div>
         </div>

@@ -1,10 +1,104 @@
 import { Link } from "react-router-dom";
 import { useCart } from "../store/CartContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { applyCoupon, getAvailableCoupons, type Coupon } from "../api/coupon.api";
+import { formatPrice } from "../utils/formatPrice";
 
 export default function CartPage() {
   const { items, updateCartItem, removeCartItem, getTotalPrice, reloadCart } = useCart();
-  const [voucher, setVoucher] = useState("");
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [discount, setDiscount] = useState(0);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
+  // Load coupon từ localStorage khi component mount
+  useEffect(() => {
+    const savedCoupon = localStorage.getItem("applied_coupon");
+    const savedDiscount = localStorage.getItem("coupon_discount");
+    if (savedCoupon && savedDiscount) {
+      try {
+        setAppliedCoupon(JSON.parse(savedCoupon));
+        setDiscount(parseFloat(savedDiscount));
+      } catch (e) {
+        console.error("Error loading coupon:", e);
+      }
+    }
+  }, []);
+
+  // Load danh sách voucher có sẵn
+  useEffect(() => {
+    const loadAvailableCoupons = async () => {
+      try {
+        setLoadingCoupons(true);
+        const total = getTotalPrice();
+        const data = await getAvailableCoupons(total);
+        setAvailableCoupons(data.coupons || []);
+      } catch (error) {
+        console.error("Error loading coupons:", error);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    };
+
+    if (items.length > 0) {
+      loadAvailableCoupons();
+    } else {
+      setAvailableCoupons([]);
+    }
+  }, [items]);
+
+  // Áp dụng voucher từ danh sách
+  const handleSelectCoupon = async (coupon: Coupon) => {
+    if (appliedCoupon?.id === coupon.id) {
+      // Nếu đã chọn voucher này rồi thì xóa
+      handleRemoveCoupon();
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponError("");
+
+    try {
+      const total = getTotalPrice();
+      const result = await applyCoupon(coupon.code, total);
+
+      if (result.ok && result.coupon && result.discount !== undefined) {
+        setAppliedCoupon(result.coupon);
+        setDiscount(result.discount);
+        // Lưu vào localStorage
+        localStorage.setItem("applied_coupon", JSON.stringify(result.coupon));
+        localStorage.setItem("coupon_discount", result.discount.toString());
+        localStorage.setItem("coupon_code", result.coupon.code);
+      } else {
+        setCouponError(result.message || "Không thể áp dụng voucher này");
+        alert(result.message || "Không thể áp dụng voucher này");
+      }
+    } catch (error: any) {
+      console.error("Error applying coupon:", error);
+      const errorMessage = error.response?.data?.message || "Có lỗi xảy ra khi áp dụng mã giảm giá";
+      setCouponError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  // Xóa voucher
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setDiscount(0);
+    setVoucher("");
+    localStorage.removeItem("applied_coupon");
+    localStorage.removeItem("coupon_discount");
+    localStorage.removeItem("coupon_code");
+  };
+
+  // Tính tổng sau khi giảm giá
+  const getFinalPrice = () => {
+    return Math.max(0, getTotalPrice() - discount);
+  };
   // Hàm xử lý cập nhật số lượng
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -31,10 +125,6 @@ export default function CartPage() {
     return `http://127.0.0.1:8000/storage/${image}`;
   };
 
-  // Hàm format giá tiền theo chuẩn Việt Nam
-  const formatPrice = (price: number) => {
-    return Math.round(price).toLocaleString("vi-VN") + "đ";
-  };
 
   if (items.length === 0) {
     return (
@@ -307,27 +397,164 @@ export default function CartPage() {
             Tóm tắt đơn hàng
           </h2>
 
-          {/* Form nhập voucher */}
+          {/* Danh sách voucher */}
           <div style={{ marginBottom: "20px" }}>
-            <label htmlFor="voucher" style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
               Mã giảm giá
             </label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                id="voucher"
-                type="text"
-                value={voucher}
-                onChange={(e) => setVoucher(e.target.value)}
-                placeholder="Nhập mã voucher"
-                style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "6px" }}
-              />
-              <button
-                onClick={() => alert(`Áp dụng voucher: ${voucher}`)}
-                style={{ padding: "10px 16px", background: "#059669", color: "white", borderRadius: "6px" }}
-              >
-                Áp dụng
-              </button>
-            </div>
+            {appliedCoupon ? (
+              <div style={{
+                padding: "12px",
+                background: "#d1fae5",
+                borderRadius: "6px",
+                border: "1px solid #10b981",
+                marginBottom: "12px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: "600", color: "#059669", marginBottom: "4px" }}>
+                      ✓ Đã chọn: {appliedCoupon.code}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#047857" }}>
+                      {appliedCoupon.type === "percent"
+                        ? `Giảm ${appliedCoupon.value}%`
+                        : `Giảm ${formatPrice(appliedCoupon.value)}`}
+                      {appliedCoupon.max_discount && appliedCoupon.type === "percent" && (
+                        <span> (tối đa {formatPrice(appliedCoupon.max_discount)})</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    style={{
+                      padding: "6px 12px",
+                      background: "#ef4444",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px"
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Danh sách voucher có sẵn */}
+            {loadingCoupons ? (
+              <div style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+                Đang tải voucher...
+              </div>
+            ) : availableCoupons.length === 0 ? (
+              <div style={{ 
+                padding: "12px", 
+                background: "#f3f4f6", 
+                borderRadius: "6px",
+                textAlign: "center",
+                color: "#6b7280",
+                fontSize: "14px"
+              }}>
+                Hiện không có voucher nào khả dụng
+              </div>
+            ) : (
+              <div style={{ 
+                maxHeight: "200px", 
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px"
+              }}>
+                {availableCoupons.map((coupon) => {
+                  const isSelected = appliedCoupon?.id === coupon.id;
+                  const isDisabled = !coupon.is_applicable;
+                  
+                  return (
+                    <button
+                      key={coupon.id}
+                      onClick={() => !isDisabled && handleSelectCoupon(coupon)}
+                      disabled={isDisabled || isApplyingCoupon}
+                      style={{
+                        padding: "12px",
+                        background: isSelected 
+                          ? "#d1fae5" 
+                          : isDisabled 
+                            ? "#f3f4f6" 
+                            : "white",
+                        border: isSelected 
+                          ? "2px solid #10b981" 
+                          : "1px solid #e5e7eb",
+                        borderRadius: "6px",
+                        cursor: isDisabled ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "all 0.2s",
+                        opacity: isDisabled ? 0.6 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDisabled && !isSelected) {
+                          e.currentTarget.style.background = "#f0fdf4";
+                          e.currentTarget.style.borderColor = "#10b981";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDisabled && !isSelected) {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.style.borderColor = "#e5e7eb";
+                        }
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            fontWeight: "600", 
+                            color: isSelected ? "#059669" : "#1f2937",
+                            marginBottom: "4px",
+                            fontSize: "14px"
+                          }}>
+                            {isSelected && "✓ "}{coupon.code}
+                          </div>
+                          <div style={{ 
+                            fontSize: "12px", 
+                            color: isDisabled ? "#9ca3af" : "#6b7280"
+                          }}>
+                            {coupon.description || (
+                              <>
+                                {coupon.type === "percent"
+                                  ? `Giảm ${coupon.value}%`
+                                  : `Giảm ${formatPrice(coupon.value)}`}
+                                {coupon.estimated_discount && (
+                                  <span style={{ marginLeft: "8px", color: "#059669", fontWeight: "500" }}>
+                                    (Tiết kiệm ~{formatPrice(coupon.estimated_discount)})
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {coupon.estimated_discount && !isDisabled && (
+                          <div style={{
+                            padding: "4px 8px",
+                            background: "#10b981",
+                            color: "white",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600"
+                          }}>
+                            -{formatPrice(coupon.estimated_discount)}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {couponError && (
+              <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "8px" }}>
+                {couponError}
+              </div>
+            )}
           </div>
 
           
@@ -336,6 +563,14 @@ export default function CartPage() {
               <span style={{ color: "#6b7280" }}>Tạm tính:</span>
               <span style={{ fontWeight: "600" }}>{formatPrice(getTotalPrice())}</span>
             </div>
+            {discount > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ color: "#6b7280" }}>Giảm giá:</span>
+                <span style={{ fontWeight: "600", color: "#ef4444" }}>
+                  -{formatPrice(discount)}
+                </span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
               <span style={{ color: "#6b7280" }}>Phí vận chuyển:</span>
               <span style={{ fontWeight: "600", color: "#059669" }}>Miễn phí</span>
@@ -344,7 +579,9 @@ export default function CartPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", paddingTop: "16px", borderTop: "2px solid #e5e7eb" }}>
             <span style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937" }}>Tổng cộng:</span>
-            <span style={{ fontSize: "24px", fontWeight: "700", color: "#059669" }}>{formatPrice(getTotalPrice())}</span>
+            <span style={{ fontSize: "24px", fontWeight: "700", color: "#059669" }}>
+              {formatPrice(getFinalPrice())}
+            </span>
           </div>
 
           <Link

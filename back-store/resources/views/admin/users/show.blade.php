@@ -67,7 +67,7 @@
                         <div class="mb-2 border-bottom pb-2">
                             <strong>Đơn #{{ $order->id }}</strong> - 
                             <span class="badge bg-info">{{ $order->status }}</span> - 
-                            <span class="text-danger">{{ number_format($order->total_amount) }} đ</span>
+                            <span class="text-danger">{{ number_format($order->total_amount, 0, ',', '.') }}đ</span>
                         </div>
                     @empty
                         <p class="text-muted">Chưa có đơn hàng</p>

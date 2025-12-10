@@ -42,9 +42,27 @@
                                 <span class="badge bg-warning">VNĐ</span>
                             @endif
                         </td>
-                        <td>{{ $coupon->value }}</td>
-                        <td>{{ $coupon->min_order_amount ?? '-' }}</td>
-                        <td>{{ $coupon->max_discount ?? '-' }}</td>
+                        <td>
+                            @if ($coupon->type === 'percent')
+                                {{ number_format($coupon->value, 0, ',', '.') }}%
+                            @else
+                                {{ number_format($coupon->value, 0, ',', '.') }}đ
+                            @endif
+                        </td>
+                        <td>
+                            @if ($coupon->min_order_amount)
+                                {{ number_format($coupon->min_order_amount, 0, ',', '.') }}đ
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>
+                            @if ($coupon->max_discount)
+                                {{ number_format($coupon->max_discount, 0, ',', '.') }}đ
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td>
                             {{ $coupon->starts_at ? $coupon->starts_at->format('d/m/Y H:i') : '-' }} <br>
                             {{ $coupon->ends_at ? $coupon->ends_at->format('d/m/Y H:i') : '-' }}

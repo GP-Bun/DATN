@@ -114,7 +114,11 @@ export default function HomePage() {
                 </div>
                 <div className="product-info">
                   <h3>{p.name as string}</h3>
-                  <p className="product-price">{Number(p.price as number).toLocaleString()}đ</p>
+                  <p className="product-price">{new Intl.NumberFormat('vi-VN', {
+                    style: 'decimal',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  }).format(Number(p.price as number))}đ</p>
                   <div className="product-rating">
                     {/* Nếu API không có reviews, hiển thị 0 */}
                     <span>⭐⭐⭐⭐⭐</span>

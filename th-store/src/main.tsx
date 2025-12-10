@@ -1,5 +1,5 @@
 // src/main.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
@@ -27,6 +27,7 @@ import Dashboard from './admin/pages/Dashboard';
 import AdminProducts from './admin/pages/Products';
 import AdminOrders from './admin/pages/Orders';
 import AdminUsers from './admin/pages/Users';
+import AdminReviews from './admin/pages/Reviews';
 import AdminLogin from './admin/pages/Login';
 import AdminRegister from './admin/pages/Register';
 
@@ -35,7 +36,8 @@ import { CartProvider } from './store/CartContext';
 import { AuthProvider } from './store/AuthContext';
 import AdminRoute from './admin/AdminRoute';
 
-const router = createBrowserRouter([
+// Tạo router configuration
+const routerConfig = [
   // User routes
   {
     path: '/',
@@ -61,12 +63,13 @@ const router = createBrowserRouter([
         <AdminLayout />
       </AdminRoute>
     ),
-    children: [
-      { path: 'dashboard', element: <Dashboard /> }, // /admin/dashboard
-      { path: 'products', element: <AdminProducts /> },
-      { path: 'orders', element: <AdminOrders /> },
-      { path: 'users', element: <AdminUsers /> },
-    ],
+      children: [
+        { path: 'dashboard', element: <Dashboard /> }, // /admin/dashboard
+        { path: 'products', element: <AdminProducts /> },
+        { path: 'orders', element: <AdminOrders /> },
+        { path: 'users', element: <AdminUsers /> },
+        { path: 'reviews', element: <AdminReviews /> },
+      ],
   },
 
   // Admin auth routes (login/register)
@@ -78,14 +81,20 @@ const router = createBrowserRouter([
     path: '/admin/register',
     element: <AdminRegister />,
   },
-]);
+];
+
+// Component để tạo router sau khi providers đã mount
+function RouterWrapper() {
+  const router = useMemo(() => createBrowserRouter(routerConfig), []);
+  return <RouterProvider router={router} />;
+}
 
 // Wrapper component để đảm bảo providers được mount đúng cách
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <RouterProvider router={router} />
+        <RouterWrapper />
       </CartProvider>
     </AuthProvider>
   );

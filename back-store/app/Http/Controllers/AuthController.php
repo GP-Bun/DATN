@@ -30,22 +30,36 @@ class AuthController extends Controller
             'password.min'      => 'Mật khẩu phải có ít nhất 6 ký tự',
         ]);
 
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'user',
-            'active'   => 1,
-        ]);
+        try {
+            $user = User::create([
+                'name'     => $request->name,
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+                'role'     => 'user',
+                'active'   => 1,
+            ]);
 
-        // Ghi log hoạt động
-        Activity::create([
-            'user_id'    => $user->id,
-            'action'     => 'register',
-            'description'=> 'Người dùng đã đăng ký tài khoản',
-        ]);
+            // Ghi log hoạt động (không làm fail nếu có lỗi)
+            try {
+                Activity::create([
+                    'user_id'    => $user->id,
+                    'action'     => 'register',
+                    'description'=> 'Người dùng đã đăng ký tài khoản',
+                ]);
+            } catch (\Exception $e) {
+                // Bỏ qua lỗi Activity, không ảnh hưởng đến đăng ký
+            }
 
-        return response()->json(['user' => $user], 201);
+            return response()->json([
+                'message' => 'Đăng ký thành công',
+                'user' => $user
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Có lỗi xảy ra khi đăng ký',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Đăng nhập user
@@ -69,21 +83,32 @@ class AuthController extends Controller
             return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
         }
         
+        try {
+            $token = $user->createToken('auth_token')->plainTextToken;
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            // Ghi log hoạt động (không làm fail nếu có lỗi)
+            try {
+                Activity::create([
+                    'user_id'    => $user->id,
+                    'action'     => 'login',
+                    'description'=> 'Người dùng đã đăng nhập hệ thống',
+                ]);
+            } catch (\Exception $e) {
+                // Bỏ qua lỗi Activity, không ảnh hưởng đến đăng nhập
+            }
 
-         // Ghi log hoạt động
-        Activity::create([
-            'user_id'    => $user->id,
-            'action'     => 'login',
-            'description'=> 'Người dùng đã đăng nhập hệ thống',
-        ]);
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
-            'user'         => $user
-        ]);
+            return response()->json([
+                'message'      => 'Đăng nhập thành công',
+                'access_token' => $token,
+                'token_type'   => 'Bearer',
+                'user'         => $user
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Có lỗi xảy ra khi đăng nhập',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Cập nhật profile

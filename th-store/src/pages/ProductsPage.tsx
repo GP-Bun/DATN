@@ -88,7 +88,11 @@ export default function ProductsPage() {
               alt={product.name}
             />
             <h3>{product.name}</h3>
-            <p className="price">{product.price.toLocaleString('vi-VN')}đ</p>
+            <p className="price">{new Intl.NumberFormat('vi-VN', {
+              style: 'decimal',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(product.price)}đ</p>
             <p className="category">{product.category?.name || "Không có danh mục"}</p>
             <Link to={`/san-pham/${product.id}`}>Xem chi tiết</Link>
           </div>

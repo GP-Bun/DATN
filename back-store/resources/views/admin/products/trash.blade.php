@@ -30,7 +30,7 @@
                         <td>{{ $p->id }}</td>
                         <td>{{ $p->name }}</td>
                         <td>{{ $p->category?->name ?? 'Không' }}</td>
-                        <td>{{ number_format($p->price, 0, ',', '.') }}₫</td>
+                        <td>{{ number_format($p->price, 0, ',', '.') }}đ</td>
                         <td>
                             @if ($p->thumbnail)
                                 <img src="{{ asset('storage/' . $p->thumbnail) }}" alt="{{ $p->name }}" width="50">
