@@ -29,7 +29,10 @@ export default function LoginPage() {
       await loginUser(email, password, rememberMe)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng nhập thất bại!')
+      console.error("Lỗi đăng nhập:", err)
+      // Xử lý lỗi từ API
+      const errorMessage = err.response?.data?.message || err.message || 'Đăng nhập thất bại!'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

@@ -36,7 +36,7 @@
                             <td>{{ $p->id }}</td>
                             <td>{{ $p->name }}</td>
                             <td>{{ $p->category?->name ?? 'Không' }}</td>
-                            <td>{{ number_format($p->price, 0, ',', '.') }}₫</td>
+                            <td>{{ number_format($p->price, 0, ',', '.') }}đ</td>
                             <td>
                                 @switch($p->status)
                                     @case(0)
@@ -93,13 +93,13 @@
                                 <td>
                                     @if ($variant->sale_price)
                                         <span class="text-danger">
-                                            {{ number_format($variant->sale_price, 0, ',', '.') }}₫
+                                            {{ number_format($variant->sale_price, 0, ',', '.') }}đ
                                         </span>
                                         <del class="text-muted ms-1">
-                                            {{ number_format($variant->original_price, 0, ',', '.') }}₫
+                                            {{ number_format($variant->original_price, 0, ',', '.') }}đ
                                         </del>
                                     @else
-                                        {{ number_format($variant->original_price, 0, ',', '.') }}₫
+                                        {{ number_format($variant->original_price, 0, ',', '.') }}đ
                                     @endif
                                 </td>
 

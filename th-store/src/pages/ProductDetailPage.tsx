@@ -36,8 +36,6 @@ export default function ProductDetailPage() {
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     comment: "",
-    user_name: "",
-    user_email: "",
   });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -156,12 +154,13 @@ export default function ProductDetailPage() {
   // Xử lý submit đánh giá
   const handleSubmitReview = async () => {
     if (!id) return;
-    if (!reviewForm.user_name.trim()) {
-      alert("Vui lòng nhập tên của bạn");
-      return;
-    }
-    if (reviewForm.user_email && !reviewForm.user_email.includes("@")) {
-      alert("Email không hợp lệ");
+    
+    // Kiểm tra user đã đăng nhập chưa
+    if (!user) {
+      const confirmLogin = confirm("Bạn cần đăng nhập để đánh giá sản phẩm. Bạn có muốn đăng nhập ngay không?");
+      if (confirmLogin) {
+        navigate("/dang-nhap");
+      }
       return;
     }
 
@@ -170,8 +169,6 @@ export default function ProductDetailPage() {
       await createReview(Number(id), {
         rating: reviewForm.rating,
         comment: reviewForm.comment || undefined,
-        user_name: reviewForm.user_name,
-        user_email: reviewForm.user_email || undefined,
       });
       
       // Reload reviews
@@ -187,14 +184,22 @@ export default function ProductDetailPage() {
       setReviewForm({
         rating: 5,
         comment: "",
-        user_name: "",
-        user_email: "",
       });
       setShowReviewForm(false);
       alert("Cảm ơn bạn đã đánh giá!");
     } catch (error: any) {
       console.error("Lỗi khi thêm đánh giá:", error);
-      alert(error.response?.data?.message || "Có lỗi xảy ra khi thêm đánh giá");
+      const errorMessage = error.response?.data?.message || "Có lỗi xảy ra khi thêm đánh giá";
+      
+      // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
+      if (errorMessage.includes("đăng nhập") || error.response?.status === 401 || error.response?.status === 403) {
+        const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn hoặc bạn chưa đăng nhập. Bạn có muốn đăng nhập lại không?");
+        if (confirmLogin) {
+          navigate("/dang-nhap");
+        }
+      } else {
+        alert(errorMessage);
+      }
     } finally {
       setSubmittingReview(false);
     }
@@ -317,7 +322,11 @@ export default function ProductDetailPage() {
 
             <div className="product-price-section">
               <span className="current-price">
-                {(selectedVariant?.sale_price ?? product.price).toLocaleString("vi-VN")}đ
+                {new Intl.NumberFormat('vi-VN', {
+                  style: 'decimal',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                }).format(selectedVariant?.sale_price ?? product.price)}đ
               </span>
             </div>
 
@@ -543,9 +552,32 @@ export default function ProductDetailPage() {
               }}
             >
               <h3 style={{ marginBottom: "20px" }}>Viết đánh giá của bạn</h3>
+              {user && (
+                <div style={{ 
+                  marginBottom: "15px", 
+                  padding: "10px", 
+                  backgroundColor: "#f0f0f0", 
+                  borderRadius: "4px",
+                  fontSize: "14px"
+                }}>
+                  Đang đánh giá với tài khoản: <strong>{user.name}</strong> ({user.email})
+                </div>
+              )}
+              {!user && (
+                <div style={{ 
+                  marginBottom: "15px", 
+                  padding: "10px", 
+                  backgroundColor: "#fff3cd", 
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  color: "#856404"
+                }}>
+                  ⚠️ Bạn cần đăng nhập để đánh giá sản phẩm
+                </div>
+              )}
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Đánh giá (sao):
+                  Đánh giá (sao): *
                 </label>
                 <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -569,40 +601,6 @@ export default function ProductDetailPage() {
               </div>
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Tên của bạn: *
-                </label>
-                <input
-                  type="text"
-                  value={reviewForm.user_name}
-                  onChange={(e) => setReviewForm({ ...reviewForm, user_name: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                  }}
-                  placeholder="Nhập tên của bạn"
-                />
-              </div>
-              <div style={{ marginBottom: "15px" }}>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Email (tùy chọn):
-                </label>
-                <input
-                  type="email"
-                  value={reviewForm.user_email}
-                  onChange={(e) => setReviewForm({ ...reviewForm, user_email: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                  }}
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div style={{ marginBottom: "15px" }}>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
                   Nhận xét (tùy chọn):
                 </label>
                 <textarea
@@ -621,14 +619,14 @@ export default function ProductDetailPage() {
               </div>
               <button
                 onClick={handleSubmitReview}
-                disabled={submittingReview}
+                disabled={submittingReview || !user}
                 style={{
                   padding: "10px 20px",
-                  backgroundColor: submittingReview ? "#ccc" : "#28a745",
+                  backgroundColor: submittingReview || !user ? "#ccc" : "#28a745",
                   color: "white",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: submittingReview ? "not-allowed" : "pointer",
+                  cursor: submittingReview || !user ? "not-allowed" : "pointer",
                 }}
               >
                 {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}

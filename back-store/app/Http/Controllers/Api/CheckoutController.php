@@ -102,12 +102,44 @@ class CheckoutController extends Controller
             $couponId = null;
 
             if ($request->coupon_code) {
-                $coupon = Coupon::where('code', $request->coupon_code)->first();
-                if ($coupon && $coupon->isValid($total)) {
-                    $discount = $coupon->calculateDiscount($total);
-                    $couponId = $coupon->id;
-                    $coupon->increment('used_count');
+                // Tìm coupon (case insensitive)
+                $coupon = Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($request->coupon_code))])->first();
+                
+                if (!$coupon) {
+                    throw new \Exception('Mã giảm giá không tồn tại');
                 }
+
+                // Kiểm tra coupon có hợp lệ không
+                if (!$coupon->active) {
+                    throw new \Exception('Mã giảm giá này hiện không khả dụng');
+                }
+
+                // Kiểm tra thời gian hiệu lực
+                $now = now();
+                if ($coupon->starts_at && $now->lt($coupon->starts_at)) {
+                    throw new \Exception('Mã giảm giá chưa có hiệu lực');
+                }
+
+                if ($coupon->ends_at && $now->gt($coupon->ends_at)) {
+                    throw new \Exception('Mã giảm giá đã hết hạn');
+                }
+
+                // Kiểm tra giới hạn sử dụng
+                if ($coupon->usage_limit && $coupon->used_count >= $coupon->usage_limit) {
+                    throw new \Exception('Mã giảm giá đã hết lượt sử dụng');
+                }
+
+                // Kiểm tra điều kiện đơn hàng tối thiểu
+                if ($coupon->min_order_amount && $total < $coupon->min_order_amount) {
+                    throw new \Exception('Đơn hàng chưa đạt điều kiện áp dụng mã. Đơn hàng tối thiểu: ' . number_format($coupon->min_order_amount, 0, ',', '.') . 'đ');
+                }
+
+                // Tính số tiền giảm
+                $discount = $coupon->calculateDiscount($total);
+                $couponId = $coupon->id;
+                
+                // Tăng số lần sử dụng
+                $coupon->increment('used_count');
             }
 
             $finalAmount = max(0, $total + $shippingCost - $discount);

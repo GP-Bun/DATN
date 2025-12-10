@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantCo
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 
 
 // ==================== Public Routes ====================
@@ -90,6 +91,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Alias "accounts" để sidebar chạy được
     Route::resource('accounts', AdminUserController::class);
 
-   
+    // Reviews
+    Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
+    Route::put('reviews/{id}/status', [AdminReviewController::class, 'updateStatus'])->name('reviews.updateStatus');
+    Route::delete('reviews/{id}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
 
 });

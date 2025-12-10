@@ -43,17 +43,22 @@ export default function RegisterPage() {
       alert("Đăng ký thành công! Vui lòng đăng nhập.")
       navigate("/dang-nhap")
     } catch (err: any) {
+      console.error("Lỗi đăng ký:", err)
+      
       // Xử lý lỗi validation từ Laravel
-      if (err.errors) {
+      // Laravel trả về format: {message: "...", errors: {field: ["error1", "error2"]}}
+      if (err.response?.data?.errors) {
         setErrors({
-          name: err.errors.name,
-          email: err.errors.email,
-          password: err.errors.password,
+          name: err.response.data.errors.name,
+          email: err.response.data.errors.email,
+          password: err.response.data.errors.password,
         })
+      } else if (err.response?.data?.message) {
+        setErrors({ general: err.response.data.message })
       } else if (err.message) {
         setErrors({ general: err.message })
       } else {
-        setErrors({ general: "Đăng ký thất bại!" })
+        setErrors({ general: "Đăng ký thất bại! Vui lòng thử lại." })
       }
     } finally {
       setIsLoading(false)

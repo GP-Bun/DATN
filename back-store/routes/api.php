@@ -14,6 +14,7 @@ use App\Http\Controllers\HomeController;
 // use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminReviewController;
 
 
 // Route::get('/home', [HomeController::class, 'index']);
@@ -48,7 +49,8 @@ Route::prefix('admin')->group(function () {
 });
 
 // Coupon API
-Route::post('/coupons/apply', [ApiCouponController::class, 'apply']);
+Route::get('/coupons/available', [ApiCouponController::class, 'available']); // Lấy danh sách voucher có sẵn
+Route::post('/coupons/apply', [ApiCouponController::class, 'apply']); // Áp dụng voucher
 
 
 // =====================================================
@@ -107,7 +109,7 @@ Route::get('/home', [HomeController::class, 'index']);
 // REVIEWS API
 Route::prefix('products/{productId}/reviews')->group(function () {
     Route::get('/', [ReviewController::class, 'index']); // Lấy danh sách đánh giá (public)
-    Route::post('/', [ReviewController::class, 'store']); // Thêm đánh giá (có thể không cần auth)
+    Route::post('/', [ReviewController::class, 'store'])->middleware('auth:sanctum'); // Thêm đánh giá (cần đăng nhập)
     Route::delete('/{id}', [ReviewController::class, 'destroy'])->middleware('auth:sanctum'); // Xóa đánh giá (cần auth)
 });
 
@@ -122,4 +124,13 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('/admin/users/{id}/role', [AdminUserController::class, 'updateRole']);
     Route::delete('/admin/users/{id}', [AdminUserController::class, 'destroy']);
     Route::post('/admin/users/{id}/restore', [AdminUserController::class, 'restore']);
+
+    // Admin Reviews Management
+    Route::prefix('admin/reviews')->group(function () {
+        Route::get('/', [AdminReviewController::class, 'index']);
+        Route::get('/stats', [AdminReviewController::class, 'stats']);
+        Route::get('/{id}', [AdminReviewController::class, 'show']);
+        Route::put('/{id}/status', [AdminReviewController::class, 'updateStatus']);
+        Route::delete('/{id}', [AdminReviewController::class, 'destroy']);
+    });
 });

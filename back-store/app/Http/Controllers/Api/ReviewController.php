@@ -46,7 +46,7 @@ class ReviewController extends Controller
      */
     public function store(Request $request, $productId)
     {
-
+        // Yêu cầu user phải đăng nhập
         $user = $request->user();
         if (!$user) {
             return response()->json([
@@ -54,11 +54,10 @@ class ReviewController extends Controller
             ], 403);
         }
 
+        // Chỉ validate rating và comment, không cần user_name và user_email
         $validator = Validator::make($request->all(), [
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
-            'user_name' => 'nullable|string|max:255',
-            'user_email' => 'nullable|email|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -73,13 +72,12 @@ class ReviewController extends Controller
             return response()->json(['message' => 'Sản phẩm không tồn tại'], 404);
         }
 
-        $user = $request->user();
-
+        // Lấy thông tin từ user đăng nhập
         $review = Review::create([
             'product_id' => $productId,
-            'user_id' => $user ? $user->id : null,
-            'user_name' => $user ? $user->name : $request->user_name,
-            'user_email' => $user ? $user->email : $request->user_email,
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'user_email' => $user->email,
             'rating' => $request->rating,
             'comment' => $request->comment,
             'status' => 1,
@@ -87,15 +85,17 @@ class ReviewController extends Controller
 
         $review->load('user:id,name');
 
-        // ✅ chỉ ghi log nếu có user đăng nhập
-        Activity::create([
-            'user_id'    => $user ? $user->id : null,
-            'action'     => 'review',
-            'description' => $user
-                ? 'Người dùng ' . $user->name . ' đã đánh giá sản phẩm ' . $product->name
-                : 'Khách hàng ' . $request->user_name . ' (' . $request->user_email . ') đã đánh giá sản phẩm ' . $product->name,
-        ]);
-
+        // Ghi log hoạt động (không làm fail nếu có lỗi)
+        try {
+            Activity::create([
+                'user_id'    => $user->id,
+                'action'     => 'review',
+                'description' => 'Người dùng ' . $user->name . ' đã đánh giá sản phẩm ' . $product->name,
+            ]);
+        } catch (\Exception $e) {
+            // Bỏ qua lỗi Activity, không ảnh hưởng đến việc tạo review
+            \Log::warning('Không thể ghi log Activity: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Đánh giá đã được thêm thành công',
@@ -130,11 +130,16 @@ class ReviewController extends Controller
             'comment' => $request->comment,
         ]);
 
-        Activity::create([
-            'user_id'    => $user->id,
-            'action'     => 'update_review',
-            'description' => 'Người dùng đã chỉnh sửa review #' . $review->id,
-        ]);
+        // Ghi log hoạt động (không làm fail nếu có lỗi)
+        try {
+            Activity::create([
+                'user_id'    => $user->id,
+                'action'     => 'update_review',
+                'description' => 'Người dùng đã chỉnh sửa review #' . $review->id,
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('Không thể ghi log Activity: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Đánh giá đã được cập nhật thành công',
@@ -154,11 +159,16 @@ class ReviewController extends Controller
 
         $review->delete();
 
-        Activity::create([
-            'user_id'    => $user->id,
-            'action'     => 'delete_review',
-            'description' => 'Người dùng đã xoá review #' . $review->id,
-        ]);
+        // Ghi log hoạt động (không làm fail nếu có lỗi)
+        try {
+            Activity::create([
+                'user_id'    => $user->id,
+                'action'     => 'delete_review',
+                'description' => 'Người dùng đã xoá review #' . $review->id,
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('Không thể ghi log Activity: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Đánh giá đã được xóa']);
     }
@@ -175,11 +185,16 @@ class ReviewController extends Controller
             $review->status = $review->status ? 0 : 1;
             $review->save();
 
-            Activity::create([
-                'user_id'    => $user->id,
-                'action'     => 'toggle_review_status',
-                'description' => 'Admin đã ' . ($review->status ? 'duyệt' : 'ẩn') . ' review #' . $review->id,
-            ]);
+            // Ghi log hoạt động (không làm fail nếu có lỗi)
+            try {
+                Activity::create([
+                    'user_id'    => $user->id,
+                    'action'     => 'toggle_review_status',
+                    'description' => 'Admin đã ' . ($review->status ? 'duyệt' : 'ẩn') . ' review #' . $review->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning('Không thể ghi log Activity: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'message' => 'Trạng thái review đã được cập nhật',

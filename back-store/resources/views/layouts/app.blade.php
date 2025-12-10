@@ -167,6 +167,11 @@
             <i class="bi bi-ticket-perforated"></i> Voucher
         </a>
 
+        {{-- Quản lý đánh giá --}}
+        <a href="{{ route('admin.reviews.index') }}"
+            class="{{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
+            <i class="bi bi-chat-dots"></i> Đánh giá
+        </a>
 
     </div>
 

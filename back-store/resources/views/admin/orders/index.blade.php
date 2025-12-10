@@ -26,7 +26,7 @@
                 <tr>
                     <td>{{ $o->id }}</td>
                     <td>{{ $o->user?->name ?? 'Khách ẩn' }}</td>
-                    <td>{{ number_format($o->total, 0, ',', '.') }} đ</td>
+                    <td>{{ number_format($o->total, 0, ',', '.') }}đ</td>
                     <td>
                         @php
                             $statusColors = [

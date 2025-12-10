@@ -36,7 +36,7 @@
                 <p>
                     <strong>Giá hiển thị:</strong>
                     <span class="text-danger fw-bold">
-                        {{ number_format($product->price, 0, ',', '.') }} VND
+                        {{ number_format($product->price, 0, ',', '.') }}đ
                     </span>
                 </p>
             </div>
@@ -96,11 +96,11 @@
                         <tr class="text-center">
                             <td>{{ $variant->color?->name ?: '-' }}</td>
                             <td>{{ $variant->size?->value ?: '-' }}</td>
-                            <td class="text-nowrap">{{ number_format($variant->original_price, 0, ',', '.') }} VND</td>
+                            <td class="text-nowrap">{{ number_format($variant->original_price, 0, ',', '.') }}đ</td>
                             <td class="text-nowrap">
                                 @if ($variant->sale_price)
                                     <span class="text-danger fw-semibold">
-                                        {{ number_format($variant->sale_price, 0, ',', '.') }} VND
+                                        {{ number_format($variant->sale_price, 0, ',', '.') }}đ
                                     </span>
                                 @else
                                     -

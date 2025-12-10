@@ -12,34 +12,149 @@ class CouponController extends Controller
     public function apply(Request $request)
     {
         $data = $request->validate([
-            'code' => 'required|string',
+            'code' => 'required|string|max:50',
             'amount' => 'required|numeric|min:0',
         ]);
 
-        $coupon = Coupon::where('code', $data['code'])->first();
-        if (! $coupon) {
-            return response()->json(['ok' => false, 'message' => 'Mã không tồn tại'], 404);
+        // Tìm coupon theo code (case insensitive)
+        $coupon = Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($data['code']))])->first();
+        
+        if (!$coupon) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mã giảm giá không tồn tại'
+            ], 404);
         }
 
-        if (! $coupon->isValid()) {
-            return response()->json(['ok' => false, 'message' => 'Mã không hợp lệ hoặc đã hết hạn'], 422);
+        // Kiểm tra coupon có active không
+        if (!$coupon->active) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mã giảm giá này hiện không khả dụng'
+            ], 422);
         }
 
-        if ($coupon->min_order_amount && $data['amount'] < $coupon->min_order_amount) {
-            return response()->json(['ok' => false, 'message' => 'Đơn hàng chưa đạt điều kiện áp dụng mã'], 422);
+        // Kiểm tra thời gian hiệu lực
+        $now = now();
+        if ($coupon->starts_at && $now->lt($coupon->starts_at)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mã giảm giá chưa có hiệu lực. Thời gian bắt đầu: ' . $coupon->starts_at->format('d/m/Y H:i')
+            ], 422);
         }
 
-        $discount = $coupon->calculateDiscount((float) $data['amount']);
+        if ($coupon->ends_at && $now->gt($coupon->ends_at)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mã giảm giá đã hết hạn. Thời gian kết thúc: ' . $coupon->ends_at->format('d/m/Y H:i')
+            ], 422);
+        }
+
+        // Kiểm tra giới hạn sử dụng
+        if ($coupon->usage_limit && $coupon->used_count >= $coupon->usage_limit) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mã giảm giá đã hết lượt sử dụng'
+            ], 422);
+        }
+
+        // Kiểm tra điều kiện đơn hàng tối thiểu
+        $orderAmount = (float) $data['amount'];
+        if ($coupon->min_order_amount && $orderAmount < $coupon->min_order_amount) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Đơn hàng chưa đạt điều kiện. Đơn hàng tối thiểu: ' . number_format($coupon->min_order_amount, 0, ',', '.') . 'đ'
+            ], 422);
+        }
+
+        // Tính số tiền giảm
+        $discount = $coupon->calculateDiscount($orderAmount);
+        $finalAmount = max(0, round($orderAmount - $discount, 2));
 
         return response()->json([
             'ok' => true,
-            'discount' => $discount,
-            'final_amount' => max(0, round($data['amount'] - $discount, 2)),
+            'message' => 'Áp dụng mã giảm giá thành công!',
+            'discount' => round($discount, 2),
+            'final_amount' => $finalAmount,
             'coupon' => [
+                'id' => $coupon->id,
                 'code' => $coupon->code,
                 'type' => $coupon->type,
                 'value' => (float) $coupon->value,
+                'min_order_amount' => $coupon->min_order_amount ? (float) $coupon->min_order_amount : null,
+                'max_discount' => $coupon->max_discount ? (float) $coupon->max_discount : null,
             ]
         ]);
+    }
+
+    // GET /api/coupons/available - Lấy danh sách voucher có sẵn
+    public function available(Request $request)
+    {
+        $orderAmount = $request->get('amount', 0);
+        $now = now();
+
+        $coupons = Coupon::where('active', true)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', $now);
+            })
+            ->where(function ($query) {
+                $query->whereNull('usage_limit')
+                    ->orWhereRaw('used_count < usage_limit');
+            })
+            ->orderBy('value', 'desc')
+            ->get()
+            ->map(function ($coupon) use ($orderAmount) {
+                // Tính discount ước tính
+                $estimatedDiscount = $coupon->calculateDiscount($orderAmount);
+                $isApplicable = $coupon->isValid($orderAmount);
+
+                return [
+                    'id' => $coupon->id,
+                    'code' => $coupon->code,
+                    'type' => $coupon->type,
+                    'value' => (float) $coupon->value,
+                    'min_order_amount' => $coupon->min_order_amount ? (float) $coupon->min_order_amount : null,
+                    'max_discount' => $coupon->max_discount ? (float) $coupon->max_discount : null,
+                    'estimated_discount' => round($estimatedDiscount, 2),
+                    'is_applicable' => $isApplicable,
+                    'description' => $this->getCouponDescription($coupon, $orderAmount),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'coupons' => $coupons,
+            'count' => $coupons->count(),
+        ]);
+    }
+
+    // Helper function để tạo mô tả voucher
+    private function getCouponDescription($coupon, $orderAmount)
+    {
+        $desc = '';
+        
+        if ($coupon->type === 'percent') {
+            $desc = "Giảm {$coupon->value}%";
+            if ($coupon->max_discount) {
+                $desc .= " (tối đa " . number_format($coupon->max_discount, 0, ',', '.') . "đ)";
+            }
+        } else {
+            $desc = "Giảm " . number_format($coupon->value, 0, ',', '.') . "đ";
+        }
+
+        if ($coupon->min_order_amount) {
+            $desc .= " - Áp dụng cho đơn từ " . number_format($coupon->min_order_amount, 0, ',', '.') . "đ";
+        }
+
+        if (!$coupon->isValid($orderAmount) && $coupon->min_order_amount && $orderAmount < $coupon->min_order_amount) {
+            $desc .= " (Cần thêm " . number_format($coupon->min_order_amount - $orderAmount, 0, ',', '.') . "đ)";
+        }
+
+        return $desc;
     }
 }
