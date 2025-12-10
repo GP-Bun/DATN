@@ -83,7 +83,7 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
 
 
 // CHECKOUT API
-Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('auth:sanctum');;
+Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('auth:sanctum');
 
 // USER — cần đăng nhập
 Route::middleware('auth:sanctum')->group(function () {

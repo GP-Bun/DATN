@@ -19,10 +19,13 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'address_id',
-        'order_status',   
-        'payment_status', 
-        'total_amount',
+        'order_status',
+        'payment_status',
+        'final_amount',
+        'shipping_cost',
+        'discount_amount',
     ];
+
 
     /**
      * Quan hệ: đơn hàng thuộc về một user
@@ -63,4 +66,15 @@ class Order extends Model
     {
         return $this->payment_status === 'paid';
     }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    public function getSubtotalAttribute(): float
+{
+    return $this->items->sum(fn($item) => $item->quantity * $item->price);
+}
+
 }

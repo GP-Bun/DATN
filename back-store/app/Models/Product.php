@@ -11,32 +11,48 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name','slug','description','price','status','category_id','thumbnail','images'
+        'name',
+        'slug',
+        'description',
+        'price',
+        'status',
+        'category_id',
+        'thumbnail',
+        'images'
     ];
 
     protected $casts = [
         'images' => 'array',
     ];
 
-    public function category(){
+    public function category()
+    {
         return $this->belongsTo(Category::class);
     }
 
-    public function variants(){
+    public function variants()
+    {
         return $this->hasMany(ProductVariant::class);
     }
 
-    public function reviews(){
+    public function reviews()
+    {
         return $this->hasMany(Review::class)->where('status', 1)->orderBy('created_at', 'desc');
     }
 
     public function getStatusLabelAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             0 => 'Ẩn',
             1 => 'Còn hàng',
             2 => 'Hết hàng',
             default => 'Không rõ',
         };
     }
+
+    public function scopeAvailable($query)
+{
+    return $query->where('status', 1); // chỉ lấy sản phẩm còn hàng
+}
+
 }

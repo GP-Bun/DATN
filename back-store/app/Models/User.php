@@ -31,7 +31,7 @@ class User extends Authenticatable
         return $this->hasMany(Address::class);
     }
 
-      public function orders()
+    public function orders()
     {
         return $this->hasMany(Order::class);
     }
@@ -44,5 +44,23 @@ class User extends Authenticatable
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    // Tổng tiền giỏ hàng của user
+    public function getCartTotalAttribute()
+    {
+        return $this->cart
+            ? $this->cart->items->sum(fn($item) => $item->price * $item->quantity)
+            : 0;
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($user) {
+            if ($user->cart) {
+                $user->cart->items()->delete();
+                $user->cart()->delete();
+            }
+        });
     }
 }

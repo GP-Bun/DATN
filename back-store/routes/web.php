@@ -17,8 +17,6 @@ use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 
 
-
-
 // ==================== Public Routes ====================
 
 // Trang chính redirect tới danh mục
@@ -91,4 +89,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // Alias "accounts" để sidebar chạy được
     Route::resource('accounts', AdminUserController::class);
+
+   
+
 });
