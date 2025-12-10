@@ -27,8 +27,6 @@ export interface ReviewResponse {
 export interface CreateReviewData {
   rating: number;
   comment?: string;
-  user_name?: string;
-  user_email?: string;
 }
 
 // Lấy danh sách đánh giá của sản phẩm
