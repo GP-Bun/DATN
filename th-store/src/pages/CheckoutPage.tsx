@@ -1,8 +1,11 @@
 import { useCart } from '../store/CartContext'
 import { useAuth } from '../store/AuthContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { checkout } from '../api/checkout.api'
+import { formatPrice } from '../utils/formatPrice'
+import { vietnamProvinces } from "../data/vietnam.provinces";
+
 
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart, reloadCart } = useCart()
@@ -19,11 +22,20 @@ export default function CheckoutPage() {
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [couponCode, setCouponCode] = useState<string | null>(null)
+
+  // Load coupon từ localStorage
+  useEffect(() => {
+    const savedCouponCode = localStorage.getItem("coupon_code");
+    if (savedCouponCode) {
+      setCouponCode(savedCouponCode);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const checkoutData = {
+    const checkoutData: any = {
       full_name: formData.fullName,
       phone: formData.phone,
       address: formData.address,
@@ -31,18 +43,26 @@ export default function CheckoutPage() {
       payment_method: formData.paymentMethod
     }
 
+    // Thêm coupon_code nếu có
+    if (couponCode) {
+      checkoutData.coupon_code = couponCode;
+    }
+
     setIsSubmitting(true)
     try {
       const response = await checkout(checkoutData)
       const order = response.order
 
-      // Xóa giỏ hàng sau khi đặt hàng thành công
+      // Xóa giỏ hàng và coupon sau khi đặt hàng thành công
       await clearCart()
       await reloadCart()
+      localStorage.removeItem("applied_coupon");
+      localStorage.removeItem("coupon_discount");
+      localStorage.removeItem("coupon_code");
 
       // Chuyển đến trang thành công với dữ liệu đơn hàng
-      navigate('/dat-hang-thanh-cong', { 
-        state: { order } 
+      navigate('/dat-hang-thanh-cong', {
+        state: { order }
       })
     } catch (err: any) {
       console.error(err)
@@ -68,16 +88,12 @@ export default function CheckoutPage() {
     return `http://127.0.0.1:8000/storage/${image}`;
   };
 
-  // Hàm format giá tiền theo chuẩn Việt Nam
-  const formatPrice = (price: number) => {
-    return Math.round(price).toLocaleString('vi-VN') + 'đ';
-  };
 
   if (items.length === 0) {
     return (
       <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
-        <div style={{ 
-          textAlign: "center", 
+        <div style={{
+          textAlign: "center",
           padding: "60px 20px",
           background: "#f9fafb",
           borderRadius: "12px"
@@ -87,8 +103,8 @@ export default function CheckoutPage() {
           <p style={{ color: "#6b7280", marginBottom: "32px", fontSize: "18px" }}>
             Hãy thêm sản phẩm vào giỏ hàng để tiếp tục thanh toán
           </p>
-          <Link 
-            to="/san-pham" 
+          <Link
+            to="/san-pham"
             style={{
               display: "inline-block",
               padding: "14px 32px",
@@ -112,18 +128,18 @@ export default function CheckoutPage() {
 
   return (
     <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ 
-        marginBottom: "32px", 
-        fontSize: "32px", 
+      <h1 style={{
+        marginBottom: "32px",
+        fontSize: "32px",
         fontWeight: "700",
         color: "#1f2937"
       }}>
         Thanh toán
       </h1>
 
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "1fr 400px", 
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 400px",
         gap: "32px",
         alignItems: "start"
       }}>
@@ -135,10 +151,10 @@ export default function CheckoutPage() {
           boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
           border: "1px solid #e5e7eb"
         }}>
-          <h2 style={{ 
-            margin: 0, 
-            marginBottom: "24px", 
-            fontSize: "24px", 
+          <h2 style={{
+            margin: 0,
+            marginBottom: "24px",
+            fontSize: "24px",
             fontWeight: "700",
             color: "#1f2937",
             borderBottom: "2px solid #e5e7eb",
@@ -149,20 +165,20 @@ export default function CheckoutPage() {
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Họ và tên *
               </label>
-              <input 
-                name="fullName" 
-                placeholder="Nhập họ và tên" 
-                value={formData.fullName} 
-                onChange={handleChange} 
+              <input
+                name="fullName"
+                placeholder="Nhập họ và tên"
+                value={formData.fullName}
+                onChange={handleChange}
                 required
                 style={{
                   width: "100%",
@@ -186,21 +202,21 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Email *
               </label>
-              <input 
-                name="email" 
-                type="email" 
-                placeholder="Nhập email" 
-                value={formData.email} 
-                onChange={handleChange} 
+              <input
+                name="email"
+                type="email"
+                placeholder="Nhập email"
+                value={formData.email}
+                onChange={handleChange}
                 required
                 style={{
                   width: "100%",
@@ -224,20 +240,20 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Số điện thoại *
               </label>
-              <input 
-                name="phone" 
-                placeholder="Nhập số điện thoại" 
-                value={formData.phone} 
-                onChange={handleChange} 
+              <input
+                name="phone"
+                placeholder="Nhập số điện thoại"
+                value={formData.phone}
+                onChange={handleChange}
                 required
                 style={{
                   width: "100%",
@@ -261,20 +277,20 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Địa chỉ *
               </label>
-              <input 
-                name="address" 
-                placeholder="Nhập địa chỉ" 
-                value={formData.address} 
-                onChange={handleChange} 
+              <input
+                name="address"
+                placeholder="Nhập địa chỉ"
+                value={formData.address}
+                onChange={handleChange}
                 required
                 style={{
                   width: "100%",
@@ -298,20 +314,19 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Thành phố *
               </label>
-              <input 
-                name="city" 
-                placeholder="Nhập thành phố" 
-                value={formData.city} 
-                onChange={handleChange} 
+              <select
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
                 required
                 style={{
                   width: "100%",
@@ -319,34 +334,42 @@ export default function CheckoutPage() {
                   border: "1px solid #d1d5db",
                   borderRadius: "8px",
                   fontSize: "16px",
+                  background: "white",
+                  cursor: "pointer",
                   transition: "all 0.2s",
                   boxSizing: "border-box"
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = "#3b82f6";
                   e.currentTarget.style.outline = "none";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.1)";
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = "#d1d5db";
                   e.currentTarget.style.boxShadow = "none";
                 }}
-              />
+              >
+                <option value="">-- Chọn tỉnh / thành phố --</option>
+                {vietnamProvinces.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+
             </div>
 
             <div style={{ marginTop: "8px" }}>
-              <label style={{ 
-                display: "block", 
-                marginBottom: "8px", 
-                fontSize: "14px", 
+              <label style={{
+                display: "block",
+                marginBottom: "8px",
+                fontSize: "14px",
                 fontWeight: "600",
                 color: "#374151"
               }}>
                 Phương thức thanh toán *
               </label>
-              <select 
-                name="paymentMethod" 
-                value={formData.paymentMethod} 
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
                 onChange={handleChange}
                 style={{
                   width: "100%",
@@ -375,8 +398,8 @@ export default function CheckoutPage() {
               </select>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isSubmitting}
               style={{
                 width: "100%",
@@ -422,10 +445,10 @@ export default function CheckoutPage() {
           border: "1px solid #e5e7eb",
           height: "fit-content"
         }}>
-          <h2 style={{ 
-            margin: 0, 
-            marginBottom: "24px", 
-            fontSize: "20px", 
+          <h2 style={{
+            margin: 0,
+            marginBottom: "24px",
+            fontSize: "20px",
             fontWeight: "700",
             color: "#1f2937"
           }}>
@@ -435,7 +458,7 @@ export default function CheckoutPage() {
           {/* Danh sách sản phẩm */}
           <div style={{ marginBottom: "24px", maxHeight: "400px", overflowY: "auto" }}>
             {items.map((item) => (
-              <div 
+              <div
                 key={item.id}
                 style={{
                   display: "flex",
@@ -462,12 +485,12 @@ export default function CheckoutPage() {
                     flexShrink: 0
                   }}
                 />
-                
+
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ 
-                    margin: 0, 
-                    marginBottom: "4px", 
-                    fontSize: "14px", 
+                  <h4 style={{
+                    margin: 0,
+                    marginBottom: "4px",
+                    fontSize: "14px",
                     fontWeight: "600",
                     color: "#1f2937",
                     overflow: "hidden",
@@ -502,9 +525,9 @@ export default function CheckoutPage() {
                       )}
                     </div>
                   )}
-                  <div style={{ 
-                    display: "flex", 
-                    justifyContent: "space-between", 
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
                     marginTop: "8px"
                   }}>
@@ -521,13 +544,13 @@ export default function CheckoutPage() {
           </div>
 
           {/* Tổng tiền */}
-          <div style={{ 
-            borderTop: "2px solid #e5e7eb", 
+          <div style={{
+            borderTop: "2px solid #e5e7eb",
             paddingTop: "16px",
             marginTop: "16px"
           }}>
-            <div style={{ 
-              display: "flex", 
+            <div style={{
+              display: "flex",
               justifyContent: "space-between",
               marginBottom: "12px"
             }}>
@@ -536,16 +559,16 @@ export default function CheckoutPage() {
                 {formatPrice(getTotalPrice())}
               </span>
             </div>
-            <div style={{ 
-              display: "flex", 
+            <div style={{
+              display: "flex",
               justifyContent: "space-between",
               marginBottom: "12px"
             }}>
               <span style={{ color: "#6b7280" }}>Phí vận chuyển:</span>
               <span style={{ fontWeight: "600", color: "#059669" }}>Miễn phí</span>
             </div>
-            <div style={{ 
-              display: "flex", 
+            <div style={{
+              display: "flex",
               justifyContent: "space-between",
               paddingTop: "16px",
               borderTop: "2px solid #e5e7eb",
@@ -554,9 +577,9 @@ export default function CheckoutPage() {
               <span style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937" }}>
                 Tổng cộng:
               </span>
-              <span style={{ 
-                fontSize: "24px", 
-                fontWeight: "700", 
+              <span style={{
+                fontSize: "24px",
+                fontWeight: "700",
                 color: "#059669"
               }}>
                 {formatPrice(getTotalPrice())}
@@ -564,7 +587,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <Link 
+          <Link
             to="/gio-hang"
             style={{
               display: "block",
