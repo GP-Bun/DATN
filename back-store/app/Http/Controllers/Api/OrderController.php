@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
+use App\Models\Activity;
 
 class OrderController extends Controller
 {
@@ -47,6 +48,13 @@ class OrderController extends Controller
             'payment_status' => $request->payment_status ?? $order->payment_status,
         ]);
 
+         // ✅ Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $order->user_id,
+            'action'     => 'update_order_status',
+            'description'=> 'Admin cập nhật trạng thái đơn hàng #' . $order->id . ' thành ' . $order->order_status,
+        ]);
+
         return response()->json(['message' => 'Cập nhật trạng thái thành công', 'order' => $order]);
     }
 
@@ -54,6 +62,14 @@ class OrderController extends Controller
     public function destroy(Order $order)
     {
         $order->delete();
+
+        // ✅ Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $order->user_id,
+            'action'     => 'delete_order',
+            'description'=> 'Admin đã xoá đơn hàng #' . $order->id,
+        ]);
+
         return response()->json(['message' => 'Đơn hàng đã được xóa']);
     }
 
@@ -124,6 +140,13 @@ class OrderController extends Controller
             }
 
             $order->update(['total_amount' => $total]);
+
+            // ✅ Ghi log hoạt động
+            Activity::create([
+                'user_id'    => $request->user()->id,
+                'action'     => 'order',
+                'description'=> 'Người dùng đã tạo đơn hàng #' . $order->id,
+            ]);
 
             return response()->json([
                 'message' => 'Đặt hàng thành công',

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\HomeController;
 // use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Admin\AdminUserController;
 
 
 // Route::get('/home', [HomeController::class, 'index']);
@@ -108,4 +109,17 @@ Route::prefix('products/{productId}/reviews')->group(function () {
     Route::get('/', [ReviewController::class, 'index']); // Lấy danh sách đánh giá (public)
     Route::post('/', [ReviewController::class, 'store']); // Thêm đánh giá (có thể không cần auth)
     Route::delete('/{id}', [ReviewController::class, 'destroy'])->middleware('auth:sanctum'); // Xóa đánh giá (cần auth)
+});
+
+
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('/admin/users', [AdminUserController::class, 'index']);
+    Route::get('/admin/users/{id}', [AdminUserController::class, 'show']);
+    Route::get('/admin/users/{id}/orders', [AdminUserController::class, 'orders']);
+    Route::get('/admin/users/{id}/reviews', [AdminUserController::class, 'reviews']);
+    Route::get('/admin/users/{id}/timeline', [AdminUserController::class, 'timeline']);
+    Route::put('/admin/users/{id}/status', [AdminUserController::class, 'updateStatus']);
+    Route::put('/admin/users/{id}/role', [AdminUserController::class, 'updateRole']);
+    Route::delete('/admin/users/{id}', [AdminUserController::class, 'destroy']);
+    Route::post('/admin/users/{id}/restore', [AdminUserController::class, 'restore']);
 });

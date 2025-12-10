@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Activity;
 
 class AuthController extends Controller
 {
@@ -37,6 +38,13 @@ class AuthController extends Controller
             'active'   => 1,
         ]);
 
+        // Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $user->id,
+            'action'     => 'register',
+            'description'=> 'Người dùng đã đăng ký tài khoản',
+        ]);
+
         return response()->json(['user' => $user], 201);
     }
 
@@ -64,6 +72,13 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+         // Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $user->id,
+            'action'     => 'login',
+            'description'=> 'Người dùng đã đăng nhập hệ thống',
+        ]);
+
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'Bearer',
@@ -87,6 +102,13 @@ class AuthController extends Controller
         $user = $request->user();
         $user->update($request->only('name','phone'));
 
+        // Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $user->id,
+            'action'     => 'update_profile',
+            'description'=> 'Người dùng đã cập nhật thông tin cá nhân',
+        ]);
+
         return response()->json(['message'=>'Cập nhật thành công','user'=>$user]);
     }
 
@@ -94,6 +116,14 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+
+        // Ghi log hoạt động
+        Activity::create([
+            'user_id'    => $request->user()->id,
+            'action'     => 'logout',
+            'description'=> 'Người dùng đã đăng xuất',
+        ]);
+        
         return response()->json(['message'=>'Đăng xuất thành công']);
     }
 }
