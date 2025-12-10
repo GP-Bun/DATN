@@ -7,6 +7,7 @@ export const checkout = async (payload: {
   address?: string;
   city?: string;
   payment_method?: string;
+  coupon_code?: string;
 }) => {
   const res = await api.post("/checkout", payload, { withCredentials: true });
   return res.data;
