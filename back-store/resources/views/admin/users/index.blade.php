@@ -33,6 +33,7 @@
                             @endif
                         </td>
                         <td>
+                            <a href="{{ route('admin.users.show', $u->id) }}" class="btn btn-sm btn-info">Chi tiết</a>
                             <a href="{{ route('admin.users.edit', $u->id) }}" class="btn btn-sm btn-warning">Sửa</a>
                             <form action="{{ route('admin.users.destroy', $u->id) }}" method="POST" class="d-inline"
                                 onsubmit="return confirm('Xóa tài khoản?');">

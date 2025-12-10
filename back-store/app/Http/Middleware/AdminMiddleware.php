@@ -12,10 +12,12 @@ class AdminMiddleware
     {
         $user = $request->user();
 
+        // Nếu user tồn tại và role = admin thì cho qua
         if ($user && $user->role === 'admin') {
             return $next($request);
         }
 
+        // Nếu không phải admin thì chặn lại
         return response()->json([
             'message' => 'Chỉ admin mới được truy cập khu vực này.'
         ], 403);

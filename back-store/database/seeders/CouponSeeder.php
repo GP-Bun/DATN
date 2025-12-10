@@ -14,7 +14,7 @@ class CouponSeeder extends Seeder
     {
         // Tạo vài mã giảm giá mẫu
         Coupon::create([
-            'code' => 'SUMMER10',
+            'code' => 'SUMMER100',
             'type' => 'percent',
             'value' => 10,
             'usage_limit' => 100,
@@ -26,7 +26,7 @@ class CouponSeeder extends Seeder
         ]);
 
         Coupon::create([
-            'code' => 'WELCOME50K',
+            'code' => 'WELCOME50K0',
             'type' => 'fixed',
             'value' => 50000,
             'usage_limit' => 50,
@@ -38,7 +38,7 @@ class CouponSeeder extends Seeder
         ]);
 
         Coupon::create([
-            'code' => 'VIPFREE',
+            'code' => 'VIPFREE1',
             'type' => 'percent',
             'value' => 15,
             'usage_limit' => null,
@@ -49,16 +49,6 @@ class CouponSeeder extends Seeder
             'active' => true,
         ]);
 
-        Coupon::create([
-            'code' => 'EXPIRED',
-            'type' => 'percent',
-            'value' => 20,
-            'usage_limit' => 100,
-            'used_count' => 100,
-            'min_order_amount' => 0,
-            'starts_at' => now()->subMonths(2),
-            'ends_at' => now()->subDays(1),
-            'active' => false,
-        ]);
+      
     }
 }

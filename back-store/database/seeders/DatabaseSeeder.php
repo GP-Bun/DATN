@@ -14,10 +14,15 @@ class DatabaseSeeder extends Seeder
     {
         // Gọi OrderSeeder để tạo dữ liệu mẫu
         $this->call(OrderSeeder::class);
-        
+
         // Gọi CouponSeeder để tạo mã giảm giá
         $this->call(CouponSeeder::class);
 
-         $this->call(ColorSizeSeeder::class);
+        $this->call(ColorSizeSeeder::class);
+
+        $this->call([
+            ProductStockSeeder::class,
+            ReviewSeeder::class,
+        ]);
     }
 }

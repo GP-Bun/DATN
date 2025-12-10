@@ -61,6 +61,15 @@ class UserController extends Controller {
         return redirect()->route('admin.users.index')->with('success','Cập nhật tài khoản thành công!');
     }
 
+    public function show($id)
+{
+    $user = User::with(['activities', 'orders.items.product', 'reviews.product', 'cart.items.product'])
+                ->findOrFail($id);
+
+    return view('admin.users.show', compact('user'));
+}
+
+
     public function destroy(User $user) {
         $user->delete();
         return redirect()->route('admin.users.index')->with('success','Xóa tài khoản thành công!');
