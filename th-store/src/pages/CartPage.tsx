@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { useCart } from "../store/CartContext";
+import { useState } from "react";
 
 export default function CartPage() {
   const { items, updateCartItem, removeCartItem, getTotalPrice, reloadCart } = useCart();
-
+  const [voucher, setVoucher] = useState("");
   // Hàm xử lý cập nhật số lượng
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -32,26 +33,20 @@ export default function CartPage() {
 
   // Hàm format giá tiền theo chuẩn Việt Nam
   const formatPrice = (price: number) => {
-    // Làm tròn về số nguyên và format với dấu chấm ngăn cách hàng nghìn
-    return Math.round(price).toLocaleString('vi-VN') + 'đ';
+    return Math.round(price).toLocaleString("vi-VN") + "đ";
   };
 
   if (items.length === 0) {
     return (
       <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
-        <div style={{ 
-          textAlign: "center", 
-          padding: "60px 20px",
-          background: "#f9fafb",
-          borderRadius: "12px"
-        }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", background: "#f9fafb", borderRadius: "12px" }}>
           <div style={{ fontSize: "64px", marginBottom: "20px" }}>🛒</div>
           <h1 style={{ marginBottom: "16px", color: "#1f2937" }}>Giỏ hàng của bạn đang trống</h1>
           <p style={{ color: "#6b7280", marginBottom: "32px", fontSize: "18px" }}>
             Hãy thêm sản phẩm vào giỏ hàng để tiếp tục mua sắm
           </p>
-          <Link 
-            to="/san-pham" 
+          <Link
+            to="/san-pham"
             style={{
               display: "inline-block",
               padding: "14px 32px",
@@ -61,10 +56,8 @@ export default function CartPage() {
               borderRadius: "8px",
               fontSize: "16px",
               fontWeight: "600",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "#2563eb"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "#3b82f6"}
           >
             Tiếp tục mua sắm
           </Link>
@@ -75,26 +68,26 @@ export default function CartPage() {
 
   return (
     <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ 
-        marginBottom: "32px", 
-        fontSize: "32px", 
+      <h1 style={{
+        marginBottom: "32px",
+        fontSize: "32px",
         fontWeight: "700",
         color: "#1f2937"
       }}>
         Giỏ hàng của bạn ({items.length} {items.length === 1 ? "sản phẩm" : "sản phẩm"})
       </h1>
 
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "1fr 400px", 
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 400px",
         gap: "32px",
         alignItems: "start"
       }}>
         {/* Danh sách sản phẩm */}
         <div>
           {items.map((item) => (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               style={{
                 background: "white",
                 borderRadius: "12px",
@@ -136,10 +129,10 @@ export default function CartPage() {
               {/* Thông tin sản phẩm */}
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
                 <div>
-                  <h3 style={{ 
-                    margin: 0, 
-                    marginBottom: "8px", 
-                    fontSize: "18px", 
+                  <h3 style={{
+                    margin: 0,
+                    marginBottom: "8px",
+                    fontSize: "18px",
                     fontWeight: "600",
                     color: "#1f2937"
                   }}>
@@ -174,9 +167,9 @@ export default function CartPage() {
                 </div>
 
                 {/* Giá và số lượng */}
-                <div style={{ 
-                  display: "flex", 
-                  justifyContent: "space-between", 
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
                   marginTop: "auto"
                 }}>
@@ -185,9 +178,9 @@ export default function CartPage() {
                   </div>
 
                   {/* Điều khiển số lượng */}
-                  <div style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
                     gap: "12px",
                     background: "#f9fafb",
                     padding: "6px",
@@ -222,9 +215,9 @@ export default function CartPage() {
                     >
                       −
                     </button>
-                    <span style={{ 
-                      minWidth: "40px", 
-                      textAlign: "center", 
+                    <span style={{
+                      minWidth: "40px",
+                      textAlign: "center",
                       fontSize: "16px",
                       fontWeight: "600",
                       color: "#1f2937"
@@ -293,6 +286,7 @@ export default function CartPage() {
         </div>
 
         {/* Tóm tắt đơn hàng */}
+        
         <div style={{
           position: "sticky",
           top: "20px",
@@ -303,62 +297,58 @@ export default function CartPage() {
           border: "1px solid #e5e7eb",
           height: "fit-content"
         }}>
-          <h2 style={{ 
-            margin: 0, 
-            marginBottom: "24px", 
-            fontSize: "20px", 
+          <h2 style={{
+            margin: 0,
+            marginBottom: "24px",
+            fontSize: "20px",
             fontWeight: "700",
             color: "#1f2937"
           }}>
             Tóm tắt đơn hàng
           </h2>
 
-          <div style={{ 
-            borderBottom: "1px solid #e5e7eb", 
-            paddingBottom: "16px",
-            marginBottom: "16px"
-          }}>
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              marginBottom: "12px"
-            }}>
-              <span style={{ color: "#6b7280" }}>Tạm tính:</span>
-              <span style={{ fontWeight: "600" }}>
-                {formatPrice(getTotalPrice())}
-              </span>
+          {/* Form nhập voucher */}
+          <div style={{ marginBottom: "20px" }}>
+            <label htmlFor="voucher" style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+              Mã giảm giá
+            </label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                id="voucher"
+                type="text"
+                value={voucher}
+                onChange={(e) => setVoucher(e.target.value)}
+                placeholder="Nhập mã voucher"
+                style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "6px" }}
+              />
+              <button
+                onClick={() => alert(`Áp dụng voucher: ${voucher}`)}
+                style={{ padding: "10px 16px", background: "#059669", color: "white", borderRadius: "6px" }}
+              >
+                Áp dụng
+              </button>
             </div>
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between",
-              marginBottom: "12px"
-            }}>
+          </div>
+
+          
+          <div style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: "16px", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+              <span style={{ color: "#6b7280" }}>Tạm tính:</span>
+              <span style={{ fontWeight: "600" }}>{formatPrice(getTotalPrice())}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
               <span style={{ color: "#6b7280" }}>Phí vận chuyển:</span>
               <span style={{ fontWeight: "600", color: "#059669" }}>Miễn phí</span>
             </div>
           </div>
 
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "space-between",
-            marginBottom: "24px",
-            paddingTop: "16px",
-            borderTop: "2px solid #e5e7eb"
-          }}>
-            <span style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937" }}>
-              Tổng cộng:
-            </span>
-            <span style={{ 
-              fontSize: "24px", 
-              fontWeight: "700", 
-              color: "#059669"
-            }}>
-              {formatPrice(getTotalPrice())}
-            </span>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", paddingTop: "16px", borderTop: "2px solid #e5e7eb" }}>
+            <span style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937" }}>Tổng cộng:</span>
+            <span style={{ fontSize: "24px", fontWeight: "700", color: "#059669" }}>{formatPrice(getTotalPrice())}</span>
           </div>
 
-          <Link 
-            to="/thanh-toan" 
+          <Link
+            to="/thanh-toan"
             style={{
               display: "block",
               width: "100%",
@@ -387,8 +377,8 @@ export default function CartPage() {
             Thanh toán
           </Link>
 
-          <Link 
-            to="/san-pham" 
+          <Link
+            to="/san-pham"
             style={{
               display: "block",
               width: "100%",

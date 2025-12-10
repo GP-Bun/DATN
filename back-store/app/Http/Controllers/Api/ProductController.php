@@ -15,6 +15,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = Product::with(['category'])
+            ->available()
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 

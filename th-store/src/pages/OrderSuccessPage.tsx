@@ -22,9 +22,16 @@ type Order = {
   id: number
   order_status: string
   payment_status: string
-  total_amount: number
+  final_amount: number
+  discount_amount: number
+  shipping_cost: number
   created_at: string
   items: OrderItem[]
+  coupon?: {
+    code: string
+    type: string
+    value: number
+  }
   address?: {
     receiver_name: string
     receiver_phone: string
@@ -80,6 +87,11 @@ export default function OrderSuccessPage() {
     return statusMap[status] || status
   }
 
+  const subtotal = order.items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  )
+
   return (
     <div className="main">
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -97,30 +109,15 @@ export default function OrderSuccessPage() {
           </p>
         </div>
 
-        <div style={{ 
-          background: 'white', 
-          padding: '24px', 
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '8px', marginBottom: '24px' }}>
           <h2 style={{ marginBottom: '20px', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px' }}>
             Thông tin đơn hàng
           </h2>
-          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <strong>Mã đơn hàng:</strong> #{order.id}
-            </div>
-            <div>
-              <strong>Ngày đặt:</strong> {formatDate(order.created_at)}
-            </div>
-            <div>
-              <strong>Trạng thái:</strong> {getStatusText(order.order_status)}
-            </div>
-            <div>
-              <strong>Thanh toán:</strong> {getPaymentStatusText(order.payment_status)}
-            </div>
+            <div><strong>Mã đơn hàng:</strong> #{order.id}</div>
+            <div><strong>Ngày đặt:</strong> {formatDate(order.created_at)}</div>
+            <div><strong>Trạng thái:</strong> {getStatusText(order.order_status)}</div>
+            <div><strong>Thanh toán:</strong> {getPaymentStatusText(order.payment_status)}</div>
           </div>
 
           {order.address && (
@@ -133,60 +130,23 @@ export default function OrderSuccessPage() {
           )}
         </div>
 
-        <div style={{ 
-          background: 'white', 
-          padding: '24px', 
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '8px', marginBottom: '24px' }}>
           <h2 style={{ marginBottom: '20px', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px' }}>
             Sản phẩm đã đặt
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {order.items.map((item) => (
-              <div 
-                key={item.id}
-                style={{ 
-                  display: 'flex', 
-                  gap: '16px', 
-                  padding: '16px',
-                  background: '#f9fafb',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb'
-                }}
-              >
+              <div key={item.id} style={{ display: 'flex', gap: '16px', padding: '16px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                 {item.product?.image ? (
-                  <img 
-                    src={item.product.image} 
-                    alt={item.product_name}
-                    style={{ 
-                      width: '100px', 
-                      height: '100px', 
-                      objectFit: 'cover',
-                      borderRadius: '8px'
-                    }} 
-                  />
+                  <img src={item.product.image} alt={item.product_name} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px' }} />
                 ) : (
-                  <div style={{
-                    width: '100px',
-                    height: '100px',
-                    background: '#e5e7eb',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#9ca3af'
-                  }}>
+                  <div style={{ width: '100px', height: '100px', background: '#e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
                     No Image
                   </div>
                 )}
-                
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ marginBottom: '8px', fontSize: '18px' }}>
-                    {item.product_name}
-                  </h3>
+                  <h3 style={{ marginBottom: '8px', fontSize: '18px' }}>{item.product_name}</h3>
                   {item.variant && (
                     <p style={{ color: '#666', marginBottom: '4px' }}>
                       {item.variant.color && `Màu: ${item.variant.color}`}
@@ -194,14 +154,11 @@ export default function OrderSuccessPage() {
                       {item.variant.size && `Size: ${item.variant.size}`}
                     </p>
                   )}
-                  <p style={{ color: '#666', marginBottom: '8px' }}>
-                    Số lượng: {item.quantity}
-                  </p>
+                  <p style={{ color: '#666', marginBottom: '8px' }}>Số lượng: {item.quantity}</p>
                   <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#059669' }}>
                     {item.price.toLocaleString('vi-VN')}đ
                   </p>
                 </div>
-                
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '20px', fontWeight: 'bold' }}>
                     {(item.price * item.quantity).toLocaleString('vi-VN')}đ
@@ -211,19 +168,26 @@ export default function OrderSuccessPage() {
             ))}
           </div>
 
-          <div style={{ 
-            marginTop: '24px', 
-            paddingTop: '24px', 
-            borderTop: '2px solid #e5e7eb',
-            textAlign: 'right'
-          }}>
+          <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid #e5e7eb', textAlign: 'right' }}>
+            <p>Tạm tính: {subtotal.toLocaleString('vi-VN')}đ</p>
+            {order.coupon && (
+              <p>
+                Voucher: <strong>{order.coupon.code}</strong> (
+                {order.coupon.type === 'percent'
+                  ? `${order.coupon.value}%`
+                  : `${order.coupon.value.toLocaleString('vi-VN')}đ`}
+                )
+              </p>
+            )}
+            <p>Giảm giá: {order.discount_amount.toLocaleString('vi-VN')}đ</p>
+            <p>Phí vận chuyển: {order.shipping_cost.toLocaleString('vi-VN')}đ</p>
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
-              Tổng cộng: {order.total_amount.toLocaleString('vi-VN')}đ
+              Tổng cộng: {order.final_amount.toLocaleString('vi-VN')}đ
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <button 
             onClick={() => navigate('/')}
             style={{
@@ -259,4 +223,3 @@ export default function OrderSuccessPage() {
     </div>
   )
 }
-

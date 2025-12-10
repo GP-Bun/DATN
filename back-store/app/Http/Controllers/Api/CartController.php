@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -15,7 +16,7 @@ class CartController extends Controller
     {
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
         $items = $cart->items()->with(['product', 'variant.color', 'variant.size'])->get();
-        
+
         // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
         $items->transform(function ($item) {
             if ($item->product) {
@@ -30,7 +31,7 @@ class CartController extends Controller
             }
             return $item;
         });
-        
+
         $total = $items->sum(fn($i) => $i->price * $i->quantity);
 
         return response()->json([
@@ -51,6 +52,13 @@ class CartController extends Controller
 
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
         $product = Product::findOrFail($request->product_id);
+
+        if ($product->status == 0) {
+            return response()->json(['message' => 'Sản phẩm đã bị ẩn'], 400);
+        }
+        if ($product->status == 2) {
+            return response()->json(['message' => 'Sản phẩm đã hết hàng'], 400);
+        }
 
         // Lấy giá: nếu có variant thì dùng giá variant (sale_price nếu có, không thì original_price)
         // Nếu không có variant thì dùng giá product
