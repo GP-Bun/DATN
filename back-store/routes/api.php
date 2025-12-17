@@ -10,11 +10,12 @@ use App\Http\Controllers\Api\ColorController;
 use App\Http\Controllers\Api\CartController; 
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ReviewController;
-use App\Http\Controllers\HomeController;
-// use App\Http\Controllers\Api\HomeController;
+// use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminReviewController;
+use App\Http\Controllers\Api\AddressController;
 
 
 // Route::get('/home', [HomeController::class, 'index']);
@@ -27,13 +28,29 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Protected user routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user-profile', fn(Request $request) => response()->json([
-        'message' => 'Lấy thông tin người dùng thành công!',
-        'user' => $request->user()
-    ]));
+    Route::get('/user-profile', function (Request $request) {
+        $user = $request->user();
+        $user->load('addresses');
+        
+        // Thêm avatar URL nếu có
+        if ($user->avatar) {
+            $user->avatar_url = \Illuminate\Support\Facades\Storage::url($user->avatar);
+        }
+        
+        return response()->json([
+            'message' => 'Lấy thông tin người dùng thành công!',
+            'user' => $user
+        ]);
+    });
 
     Route::post('/user-profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    
+    // Address routes
+    Route::get('/addresses', [AddressController::class, 'index']);
+    Route::post('/addresses', [AddressController::class, 'store']);
+    Route::put('/addresses/{address}', [AddressController::class, 'update']);
+    Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
 });
 
 // Admin routes

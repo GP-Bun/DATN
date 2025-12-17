@@ -116,6 +116,7 @@ class ProductController extends Controller
             'description' => $request->description,
             'price' => $firstVariant['original_price'] ?? 0,
             'status' => $request->status,
+            'is_featured' => $request->has('is_featured') ? 1 : 0,
             'category_id' => $request->category_id,
             'thumbnail' => $thumbnailPath,
             'images' => $imagePaths,
@@ -238,6 +239,7 @@ class ProductController extends Controller
             'description' => $request->description,
             'price' => $firstVariant['original_price'] ?? 0,
             'status' => $request->status,
+            'is_featured' => $request->has('is_featured') ? 1 : 0,
             'category_id' => $request->category_id,
         ]);
 

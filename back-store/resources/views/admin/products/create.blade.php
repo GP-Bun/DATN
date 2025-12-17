@@ -55,6 +55,16 @@
             </div>
 
             <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="is_featured" {{ old('is_featured') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_featured">
+                        <strong>⭐ Đánh dấu là sản phẩm nổi bật</strong>
+                        <small class="text-muted d-block">Sản phẩm này sẽ hiển thị trên trang chủ</small>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
                 <label class="form-label">Ảnh đại diện</label>
                 <input type="file" name="thumbnail" class="form-control" required>
                 <img id="preview-thumbnail" src="" class="mt-2" style="width:120px; display:none;">

@@ -18,7 +18,8 @@ import {
   CheckoutPage,
   OrderSuccessPage,
   LoginPage, 
-  RegisterPage 
+  RegisterPage,
+  ProfilePage
 } from './pages';
 import TestApiPage from './pages/TestApi';
 
@@ -51,6 +52,7 @@ const routerConfig = [
       { path: 'dat-hang-thanh-cong', element: <OrderSuccessPage /> },
       { path: 'dang-nhap', element: <LoginPage /> },
       { path: 'dang-ky', element: <RegisterPage /> },
+      { path: 'tai-khoan', element: <ProfilePage /> },
       { path: 'test-api', element: <TestApiPage /> },
     ],
   },

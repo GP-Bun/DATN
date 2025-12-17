@@ -68,6 +68,17 @@
                 @enderror
             </div>
 
+            {{-- Sản phẩm nổi bật --}}
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="is_featured" {{ $product->is_featured ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_featured">
+                        <strong>⭐ Đánh dấu là sản phẩm nổi bật</strong>
+                        <small class="text-muted d-block">Sản phẩm này sẽ hiển thị trên trang chủ</small>
+                    </label>
+                </div>
+            </div>
+
             {{-- Ảnh đại diện --}}
             <div class="mb-3">
                 <label class="form-label">Ảnh đại diện</label>

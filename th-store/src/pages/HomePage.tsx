@@ -93,6 +93,10 @@ export default function HomePage() {
             products.map((p: any) => {
               const getImageUrl = () => {
                 if (p.thumbnail) {
+                  // Nếu thumbnail đã là URL đầy đủ thì dùng luôn, nếu không thì thêm prefix
+                  if (p.thumbnail.startsWith('http')) {
+                    return p.thumbnail;
+                  }
                   return `http://127.0.0.1:8000/storage/${p.thumbnail}`;
                 }
                 if (p.image) {

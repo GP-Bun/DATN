@@ -19,12 +19,12 @@ class AddressController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'recipient_name' => 'required|string|max:255',
-            'phone'          => 'required|string|max:20',
-            'street'         => 'required|string|max:255',
+            'receiver_name' => 'required|string|max:255',
+            'receiver_phone' => 'required|string|max:20',
+            'line1'         => 'required|string|max:255',
             'city'           => 'required|string|max:255',
-            'district'       => 'required|string|max:255',
             'province'       => 'required|string|max:255',
+            'zip'            => 'nullable|string|max:10',
             'is_default'     => 'boolean',
         ]);
 
@@ -46,12 +46,12 @@ class AddressController extends Controller
         }
 
         $data = $request->validate([
-            'recipient_name' => 'string|max:255',
-            'phone'          => 'string|max:20',
-            'street'         => 'string|max:255',
-            'city'           => 'string|max:255',
-            'district'       => 'string|max:255',
-            'province'       => 'string|max:255',
+            'receiver_name' => 'nullable|string|max:255',
+            'receiver_phone' => 'nullable|string|max:20',
+            'line1'         => 'nullable|string|max:255',
+            'city'           => 'nullable|string|max:255',
+            'province'       => 'nullable|string|max:255',
+            'zip'            => 'nullable|string|max:10',
             'is_default'     => 'boolean',
         ]);
 
