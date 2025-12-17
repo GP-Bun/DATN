@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { checkout } from '../api/checkout.api'
 import { formatPrice } from '../utils/formatPrice'
 import { vietnamProvinces } from "../data/vietnam.provinces";
+import { vietnamDistricts } from "../data/vietnam.districts";
 
 
 export default function CheckoutPage() {
@@ -18,6 +19,7 @@ export default function CheckoutPage() {
     phone: '',
     address: '',
     city: '',
+    province: '',
     paymentMethod: 'cod'
   })
 
@@ -40,6 +42,7 @@ export default function CheckoutPage() {
       phone: formData.phone,
       address: formData.address,
       city: formData.city,
+      province: formData.province,
       payment_method: formData.paymentMethod
     }
 
@@ -313,48 +316,91 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div>
-              <label style={{
-                display: "block",
-                marginBottom: "8px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#374151"
-              }}>
-                Thành phố *
-              </label>
-              <select
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  background: "white",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  boxSizing: "border-box"
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#3b82f6";
-                  e.currentTarget.style.outline = "none";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.1)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "#d1d5db";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                <option value="">-- Chọn tỉnh / thành phố --</option>
-                {vietnamProvinces.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151"
+                }}>
+                  Quận/Huyện *
+                </label>
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    background: "white",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#3b82f6";
+                    e.currentTarget.style.outline = "none";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#d1d5db";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <option value="">-- Chọn quận / huyện --</option>
+                  {vietnamDistricts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151"
+                }}>
+                  Tỉnh/Thành phố *
+                </label>
+                <select
+                  name="province"
+                  value={formData.province}
+                  onChange={handleChange}
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    background: "white",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#3b82f6";
+                    e.currentTarget.style.outline = "none";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#d1d5db";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <option value="">-- Chọn tỉnh / thành phố --</option>
+                  {vietnamProvinces.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div style={{ marginTop: "8px" }}>
