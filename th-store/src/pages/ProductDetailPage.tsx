@@ -39,6 +39,7 @@ export default function ProductDetailPage() {
   });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
 
   // Load sản phẩm từ API
   useEffect(() => {
@@ -205,22 +206,67 @@ export default function ProductDetailPage() {
     }
   };
 
-  // Render stars
-  const renderStars = (rating: number, size: "small" | "large" = "small") => {
-    const starSize = size === "large" ? "24px" : "16px";
+  // Render stars với hiệu ứng đẹp hơn
+  const renderStars = (rating: number, size: "small" | "large" = "small", showNumber: boolean = false, interactive: boolean = false, onRatingChange?: (rating: number) => void, currentHover?: number) => {
+    const starSize = size === "large" ? "28px" : "18px";
+    const fullStar = "★";
+    const emptyStar = "☆";
+    
+    const handleStarClick = (star: number) => {
+      if (interactive && onRatingChange) {
+        onRatingChange(star);
+      }
+    };
+    
     return (
-      <div style={{ display: "flex", gap: "2px" }}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <span
-            key={star}
-            style={{
-              fontSize: starSize,
-              color: star <= rating ? "#FFD700" : "#ddd",
-            }}
-          >
-            ⭐
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div style={{ display: "flex", gap: "2px" }}>
+          {[1, 2, 3, 4, 5].map((star) => {
+            const isActive = star <= (currentHover || rating);
+            
+            return (
+              <span
+                key={star}
+                onClick={() => handleStarClick(star)}
+                onMouseEnter={() => interactive && setHoverRating(star)}
+                onMouseLeave={() => interactive && setHoverRating(0)}
+                style={{
+                  fontSize: starSize,
+                  color: isActive ? "#FFD700" : "#ddd",
+                  textShadow: isActive ? "0 0 8px rgba(255, 215, 0, 0.6), 0 0 12px rgba(255, 215, 0, 0.4)" : "none",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  display: "inline-block",
+                  lineHeight: "1",
+                  cursor: interactive ? "pointer" : "default",
+                  transform: interactive && isActive ? "scale(1.15)" : "scale(1)",
+                  filter: isActive ? "drop-shadow(0 0 4px rgba(255, 215, 0, 0.8))" : "none",
+                  animation: isActive && interactive && currentHover === star ? "starPulse 0.6s ease-in-out" : "none",
+                }}
+              >
+                {isActive ? fullStar : emptyStar}
+              </span>
+            );
+          })}
+        </div>
+        {showNumber && (
+          <span style={{ 
+            marginLeft: "8px", 
+            fontSize: size === "large" ? "16px" : "14px",
+            fontWeight: "600",
+            color: "#666",
+            backgroundColor: "#f0f0f0",
+            padding: "4px 8px",
+            borderRadius: "6px"
+          }}>
+            {rating}/5
           </span>
-        ))}
+        )}
+        <style>{`
+          @keyframes starPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+          }
+        `}</style>
       </div>
     );
   };
@@ -576,27 +622,29 @@ export default function ProductDetailPage() {
                 </div>
               )}
               <div style={{ marginBottom: "15px" }}>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
                   Đánh giá (sao): *
                 </label>
-                <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setReviewForm({ ...reviewForm, rating: star })}
-                      style={{
-                        fontSize: "24px",
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                        color: star <= reviewForm.rating ? "#FFD700" : "#ddd",
-                        padding: 0,
-                      }}
-                    >
-                      ⭐
-                    </button>
-                  ))}
-                  <span style={{ marginLeft: "10px" }}>{reviewForm.rating}/5</span>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                  {renderStars(
+                    reviewForm.rating,
+                    "large",
+                    false,
+                    true,
+                    (rating) => setReviewForm({ ...reviewForm, rating }),
+                    hoverRating
+                  )}
+                  <span style={{ 
+                    marginLeft: "12px", 
+                    fontSize: "18px",
+                    fontWeight: "600",
+                    color: "#333",
+                    padding: "6px 12px",
+                    backgroundColor: "#f0f0f0",
+                    borderRadius: "6px"
+                  }}>
+                    {reviewForm.rating}/5 sao
+                  </span>
                 </div>
               </div>
               <div style={{ marginBottom: "15px" }}>
@@ -656,11 +704,11 @@ export default function ProductDetailPage() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
                       <div>
-                        <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
+                        <div style={{ fontWeight: "bold", marginBottom: "5px", fontSize: "16px" }}>
                           {review.user?.name || review.user_name}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          {renderStars(review.rating)}
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                          {renderStars(review.rating, "small", true)}
                           <span style={{ color: "#666", fontSize: "14px" }}>
                             {new Date(review.created_at).toLocaleDateString("vi-VN")}
                           </span>
