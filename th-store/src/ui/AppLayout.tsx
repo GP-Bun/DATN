@@ -3,15 +3,8 @@ import { useAuth } from '../store/AuthContext'
 import { useCart } from '../store/CartContext'
 
 export default function AppLayout() {
-  const { user, logoutUser } = useAuth()
+  const { user } = useAuth()
   const { getTotalItems } = useCart()
-  
-  const handleLogout = async () => {
-    if (window.confirm('Bạn có chắc chắn muốn đăng xuất không?')) {
-      await logoutUser()
-      alert('Đăng xuất thành công!')
-    }
-  }
 
   return (
     <div className="app-container">
@@ -43,13 +36,10 @@ export default function AppLayout() {
             <span>Thanh toán</span>
           </NavLink>
           {user ? (
-            <button
-              onClick={handleLogout}
-              className="nav-link nav-link-button"
-            >
+            <NavLink to="/tai-khoan" className="nav-link">
               <span className="nav-icon">👤</span>
-              <span>Đăng xuất ({user.name})</span>
-            </button>
+              <span>Tài khoản ({user.name})</span>
+            </NavLink>
           ) : (
             <>
               <NavLink to="/dang-nhap" className="nav-link">
