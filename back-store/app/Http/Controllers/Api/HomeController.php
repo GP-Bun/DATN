@@ -13,12 +13,42 @@ class HomeController extends Controller
     {
         // Lấy banner
         $banners = Banner::select('id', 'image', 'link')->get();
+        
+        // Chuyển đổi đường dẫn ảnh banner thành URL đầy đủ
+        $banners->transform(function ($banner) {
+            if ($banner->image) {
+                $banner->image = url('storage/' . $banner->image);
+            }
+            return $banner;
+        });
 
-        // Lấy sản phẩm nổi bật (ví dụ: lấy 8 sản phẩm mới nhất)
-        $featuredProducts = Product::select('id', 'name', 'price', 'thumbnail')
+        // Lấy 8 sản phẩm nổi bật (is_featured = 1), nếu không có thì lấy sản phẩm mới nhất
+        $featuredProducts = Product::where('is_featured', 1)
+            ->where('status', 1) // Chỉ lấy sản phẩm còn hàng
             ->orderBy('created_at', 'desc')
             ->take(8)
+            ->select('id', 'name', 'price', 'thumbnail')
             ->get();
+        
+        // Nếu không có sản phẩm nổi bật, lấy 8 sản phẩm mới nhất
+        if ($featuredProducts->isEmpty()) {
+            $featuredProducts = Product::where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->take(8)
+                ->select('id', 'name', 'price', 'thumbnail')
+                ->get();
+        }
+        
+        // Chuyển đổi đường dẫn ảnh thành URL đầy đủ
+        $featuredProducts->transform(function ($product) {
+            if ($product->thumbnail) {
+                // Nếu thumbnail chưa có http thì thêm prefix
+                if (!str_starts_with($product->thumbnail, 'http')) {
+                    $product->thumbnail = url('storage/' . $product->thumbnail);
+                }
+            }
+            return $product;
+        });
 
         // Lấy danh mục nổi bật (ví dụ: 6 danh mục đầu tiên)
         $featuredCategories = Category::select('id', 'name')
