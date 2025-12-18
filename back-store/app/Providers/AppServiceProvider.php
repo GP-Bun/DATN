@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Observers\ProductObserver;
 use App\Observers\ProductVariantObserver;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +27,6 @@ class AppServiceProvider extends ServiceProvider
         // ✅ Đăng ký Observer cho Product và ProductVariant
         Product::observe(ProductObserver::class);
         ProductVariant::observe(ProductVariantObserver::class);
+        Paginator::useBootstrapFive();
     }
 }

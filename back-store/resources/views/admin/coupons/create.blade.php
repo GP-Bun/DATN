@@ -26,7 +26,7 @@
 
             <div class="mb-3">
                 <label class="form-label">Loại giảm giá</label>
-                <select name="type" class="form-select" required>
+                <select name="type" id="discount_type" class="form-select" required onchange="toggleMaxDiscount()">
                     <option value="percent" {{ old('type') == 'percent' ? 'selected' : '' }}>Phần trăm (%)</option>
                     <option value="fixed" {{ old('type') == 'fixed' ? 'selected' : '' }}>Số tiền (VNĐ)</option>
                 </select>
@@ -42,7 +42,7 @@
                 <input type="number" name="min_order_amount" class="form-control" value="{{ old('min_order_amount') }}">
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" id="max_discount_group">
                 <label class="form-label">Giảm tối đa</label>
                 <input type="number" name="max_discount" class="form-control" value="{{ old('max_discount') }}">
             </div>
@@ -63,7 +63,8 @@
             </div>
 
             <div class="mb-3 form-check">
-                <input type="checkbox" name="active" class="form-check-input" id="active" {{ old('active') ? 'checked' : '' }}>
+                <input type="checkbox" name="active" class="form-check-input" id="active"
+                    {{ old('active') ? 'checked' : '' }}>
                 <label class="form-check-label" for="active">Kích hoạt voucher</label>
             </div>
 
@@ -71,4 +72,20 @@
             <a href="{{ route('admin.coupons.index') }}" class="btn btn-secondary">Hủy</a>
         </form>
     </div>
+    
+@endsection
+
+@section('scripts')
+<script>
+function toggleMaxDiscount() {
+    const type = document.getElementById('discount_type').value;
+    const group = document.getElementById('max_discount_group');
+    if (type === 'percent') {
+        group.style.display = 'block';
+    } else {
+        group.style.display = 'none';
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleMaxDiscount);
+</script>
 @endsection

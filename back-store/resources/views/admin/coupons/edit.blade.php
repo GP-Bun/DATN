@@ -26,12 +26,12 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Loại giảm giá</label>
-                <select name="type" class="form-select" required>
-                    <option value="percent" {{ old('type', $coupon->type) == 'percent' ? 'selected' : '' }}>Phần trăm (%)</option>
-                    <option value="fixed" {{ old('type', $coupon->type) == 'fixed' ? 'selected' : '' }}>Số tiền (VNĐ)</option>
-                </select>
-            </div>
+    <label class="form-label">Loại giảm giá</label>
+    <select name="type" id="discount_type" class="form-select" required onchange="toggleMaxDiscount()">
+        <option value="percent" {{ old('type', $coupon->type) == 'percent' ? 'selected' : '' }}>Phần trăm (%)</option>
+        <option value="fixed" {{ old('type', $coupon->type) == 'fixed' ? 'selected' : '' }}>Số tiền (VNĐ)</option>
+    </select>
+</div>
 
             <div class="mb-3">
                 <label class="form-label">Giá trị</label>
@@ -43,10 +43,10 @@
                 <input type="number" name="min_order_amount" class="form-control" value="{{ old('min_order_amount', $coupon->min_order_amount) }}">
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Giảm tối đa</label>
-                <input type="number" name="max_discount" class="form-control" value="{{ old('max_discount', $coupon->max_discount) }}">
-            </div>
+            <div class="mb-3" id="max_discount_group">
+    <label class="form-label">Giảm tối đa</label>
+    <input type="number" name="max_discount" class="form-control" value="{{ old('max_discount', $coupon->max_discount) }}">
+</div>
 
             <div class="mb-3">
                 <label class="form-label">Ngày bắt đầu</label>
@@ -75,4 +75,21 @@
             <a href="{{ route('admin.coupons.index') }}" class="btn btn-secondary">Hủy</a>
         </form>
     </div>
+
+    
+@endsection
+
+@section('scripts')
+<script>
+function toggleMaxDiscount() {
+    const type = document.getElementById('discount_type').value;
+    const group = document.getElementById('max_discount_group');
+    if (type === 'percent') {
+        group.style.display = 'block';
+    } else {
+        group.style.display = 'none';
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleMaxDiscount);
+</script>
 @endsection
