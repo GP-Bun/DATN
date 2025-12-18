@@ -70,9 +70,8 @@ Route::get('/coupons/available', [ApiCouponController::class, 'available']); // 
 Route::post('/coupons/apply', [ApiCouponController::class, 'apply']); // Áp dụng voucher
 
 
-// =====================================================
 // 🟦 PRODUCT API — ĐÃ SỬA ĐÚNG CHUẨN FE React
-// =====================================================
+
 Route::prefix('products')->group(function () {
 
     // PUBLIC API
@@ -107,8 +106,10 @@ Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('a
 
 // USER — cần đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
+     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);       // Lấy danh sách đơn hàng của user
     Route::get('/orders/{order}', [OrderController::class, 'show']); // Xem chi tiết đơn hàng
+    Route::post('/orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment']); // ✅ Xác nhận thanh toán
 });
 
 // ADMIN — quản lý đơn hàng

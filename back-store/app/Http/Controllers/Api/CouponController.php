@@ -18,7 +18,7 @@ class CouponController extends Controller
 
         // Tìm coupon theo code (case insensitive)
         $coupon = Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($data['code']))])->first();
-        
+
         if (!$coupon) {
             return response()->json([
                 'ok' => false,
@@ -88,30 +88,30 @@ class CouponController extends Controller
     }
 
     // GET /api/coupons/available - Lấy danh sách voucher có sẵn
+    // GET /api/coupons/available - Lấy tất cả voucher kèm trạng thái
     public function available(Request $request)
     {
         $orderAmount = $request->get('amount', 0);
         $now = now();
 
-        $coupons = Coupon::where('active', true)
-            ->where(function ($query) use ($now) {
-                $query->whereNull('starts_at')
-                    ->orWhere('starts_at', '<=', $now);
-            })
-            ->where(function ($query) use ($now) {
-                $query->whereNull('ends_at')
-                    ->orWhere('ends_at', '>=', $now);
-            })
-            ->where(function ($query) {
-                $query->whereNull('usage_limit')
-                    ->orWhereRaw('used_count < usage_limit');
-            })
-            ->orderBy('value', 'desc')
+        $coupons = Coupon::orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($coupon) use ($orderAmount) {
+            ->map(function ($coupon) use ($orderAmount, $now) {
                 // Tính discount ước tính
                 $estimatedDiscount = $coupon->calculateDiscount($orderAmount);
                 $isApplicable = $coupon->isValid($orderAmount);
+
+                // Xác định trạng thái
+                $status = 'active';
+                if ($coupon->starts_at && $now->lt($coupon->starts_at)) {
+                    $status = 'upcoming';
+                }
+                if ($coupon->ends_at && $now->gt($coupon->ends_at)) {
+                    $status = 'expired';
+                }
+                if (!$coupon->active) {
+                    $status = 'inactive';
+                }
 
                 return [
                     'id' => $coupon->id,
@@ -122,6 +122,7 @@ class CouponController extends Controller
                     'max_discount' => $coupon->max_discount ? (float) $coupon->max_discount : null,
                     'estimated_discount' => round($estimatedDiscount, 2),
                     'is_applicable' => $isApplicable,
+                    'status' => $status,
                     'description' => $this->getCouponDescription($coupon, $orderAmount),
                 ];
             })
@@ -132,12 +133,11 @@ class CouponController extends Controller
             'count' => $coupons->count(),
         ]);
     }
-
     // Helper function để tạo mô tả voucher
     private function getCouponDescription($coupon, $orderAmount)
     {
         $desc = '';
-        
+
         if ($coupon->type === 'percent') {
             $desc = "Giảm {$coupon->value}%";
             if ($coupon->max_discount) {
@@ -153,6 +153,17 @@ class CouponController extends Controller
 
         if (!$coupon->isValid($orderAmount) && $coupon->min_order_amount && $orderAmount < $coupon->min_order_amount) {
             $desc .= " (Cần thêm " . number_format($coupon->min_order_amount - $orderAmount, 0, ',', '.') . "đ)";
+        }
+
+        // Nếu chưa tới thời gian bắt đầu
+        $now = now();
+        if ($coupon->starts_at && $now->lt($coupon->starts_at)) {
+            $desc .= " (Kích hoạt từ " . $coupon->starts_at->format('d/m/Y H:i') . ")";
+        }
+
+        // Nếu đã hết hạn
+        if ($coupon->ends_at && $now->gt($coupon->ends_at)) {
+            $desc .= " (Đã hết hạn)";
         }
 
         return $desc;

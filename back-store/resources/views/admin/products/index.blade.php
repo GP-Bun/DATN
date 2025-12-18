@@ -7,9 +7,16 @@
         <h4 class="mb-3">Danh sách sản phẩm</h4>
 
         @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
         @endif
 
+        @if (session('error'))
+            <div class="alert alert-danger">
+                {{ session('error') }}
+            </div>
+        @endif
         <a href="{{ route('admin.products.create') }}" class="btn btn-primary mb-3">Thêm sản phẩm</a>
         <a href="{{ route('admin.products.trash') }}" class="btn btn-secondary mb-3">
             Thùng rác <span class="badge bg-danger">{{ $trashCount }}</span>

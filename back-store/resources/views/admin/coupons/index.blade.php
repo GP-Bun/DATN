@@ -79,11 +79,12 @@
                         </td>
                         <td class="text-center">
                             <a href="{{ route('admin.coupons.edit', $coupon->id) }}" class="btn btn-sm btn-warning">Sửa</a>
-<form action="{{ route('admin.coupons.destroy', $coupon->id) }}" method="POST" class="d-inline">
-    @csrf
-    @method('DELETE')
-    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-</form>
+                            <form action="{{ route('admin.coupons.destroy', $coupon->id) }}" method="POST"
+                                class="d-inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+                            </form>
 
                             </form>
                         </td>

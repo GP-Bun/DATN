@@ -24,8 +24,20 @@ class Order extends Model
         'final_amount',
         'shipping_cost',
         'discount_amount',
+        'payment_method',   // COD hoặc bank_transfer
+        'transaction_id',   // Mã giao dịch từ Momo/ngân hàng
+        'paid_at',          // Thời điểm thanh toán
+        'is_verified',      // Đã xác minh giao dịch chưa
+        'notes',
     ];
 
+    protected $casts = [
+        'paid_at' => 'datetime',
+        'is_verified' => 'boolean',
+        'final_amount' => 'float',
+        'shipping_cost' => 'float',
+        'discount_amount' => 'float',
+    ];
 
     /**
      * Quan hệ: đơn hàng thuộc về một user
@@ -52,6 +64,22 @@ class Order extends Model
     }
 
     /**
+     * Quan hệ: đơn hàng có thể gắn coupon
+     */
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    /**
+     * Quan hệ: đơn hàng có nhiều thanh toán (payments)
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
      * Scope: lấy đơn hàng theo trạng thái
      */
     public function scopeStatus($query, string $status)
@@ -67,14 +95,35 @@ class Order extends Model
         return $this->payment_status === 'paid';
     }
 
-    public function coupon(): BelongsTo
+    /**
+     * Helper: kiểm tra đơn hàng COD
+     */
+    public function isCod(): bool
     {
-        return $this->belongsTo(Coupon::class);
+        return $this->payment_method === 'cod';
     }
 
-    public function getSubtotalAttribute(): float
-{
-    return $this->items->sum(fn($item) => $item->quantity * $item->price);
-}
+    /**
+     * Helper: kiểm tra đơn hàng chuyển khoản
+     */
+    public function isBankTransfer(): bool
+    {
+        return $this->payment_method === 'bank_transfer';
+    }
 
+    /**
+     * Helper: kiểm tra giao dịch đã xác minh chưa
+     */
+    public function isVerified(): bool
+    {
+        return $this->is_verified;
+    }
+
+    /**
+     * Helper: tính tổng tiền sản phẩm (chưa tính phí ship, giảm giá)
+     */
+    public function getSubtotalAttribute(): float
+    {
+        return $this->items->sum(fn($item) => $item->quantity * $item->price);
+    }
 }
