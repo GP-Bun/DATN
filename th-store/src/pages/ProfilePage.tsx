@@ -16,6 +16,44 @@ interface Address {
   is_default: boolean
 }
 
+type OrderItem = {
+  id: number
+  product_id: number
+  product_name: string
+  quantity: number
+  price: number
+  product?: {
+    id: number
+    name: string
+    image?: string
+    thumbnail?: string
+    thumbnail_url?: string
+    images?: string[]
+  }
+  variant?: {
+    color?: string
+    size?: string
+  }
+}
+
+type Order = {
+  id: number
+  order_status: string
+  payment_status: string
+  final_amount: number
+  discount_amount: number
+  shipping_cost: number
+  created_at: string
+  items: OrderItem[]
+  address?: {
+    receiver_name: string
+    receiver_phone: string
+    line1: string
+    city: string
+    province: string
+  }
+}
+
 const userApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" })
 
 // Interceptor để thêm token
@@ -30,6 +68,8 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isEditingAddress, setIsEditingAddress] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null)
@@ -63,6 +103,7 @@ export default function ProfilePage() {
     })
     loadAddresses()
     loadUserProfile()
+    loadOrders()
   }, [user])
 
   const loadUserProfile = async () => {
@@ -88,6 +129,15 @@ export default function ProfilePage() {
       setAddresses(res.data)
     } catch (err) {
       console.error('Lỗi tải địa chỉ:', err)
+    }
+  }
+
+  const loadOrders = async () => {
+    try {
+      const res = await userApi.get('/orders')
+      setOrders(res.data)
+    } catch (err) {
+      console.error('Lỗi tải đơn hàng:', err)
     }
   }
 
@@ -198,6 +248,48 @@ export default function ProfilePage() {
     if (image.startsWith("/")) return `http://127.0.0.1:8000${image}`;
     return `http://127.0.0.1:8000/storage/${image}`;
   };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      pending: 'Chờ xử lý',
+      processing: 'Đang xử lý',
+      shipped: 'Đang giao hàng',
+      delivered: 'Đã giao hàng',
+      cancelled: 'Đã hủy'
+    }
+    return statusMap[status] || status
+  }
+
+  const getStatusColor = (status: string) => {
+    const colorMap: Record<string, string> = {
+      pending: '#f59e0b',
+      processing: '#3b82f6',
+      shipped: '#8b5cf6',
+      delivered: '#10b981',
+      cancelled: '#ef4444'
+    }
+    return colorMap[status] || '#6b7280'
+  }
+
+  const getPaymentStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      unpaid: 'Chưa thanh toán',
+      paid: 'Đã thanh toán',
+      refunded: 'Đã hoàn tiền'
+    }
+    return statusMap[status] || status
+  }
 
   if (!user) {
     return null
@@ -874,6 +966,250 @@ export default function ProfilePage() {
                 </div>
               ))
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ĐƠN HÀNG ĐÃ ĐẶT */}
+      <div style={{
+        background: "white",
+        borderRadius: "12px",
+        padding: "32px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        border: "1px solid #e5e7eb",
+        marginBottom: "32px"
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "24px",
+          borderBottom: "2px solid #e5e7eb",
+          paddingBottom: "16px"
+        }}>
+          <h2 style={{
+            margin: 0,
+            fontSize: "24px",
+            fontWeight: "700",
+            color: "#1f2937"
+          }}>
+            Đơn hàng đã đặt
+          </h2>
+        </div>
+
+        {orders.length === 0 ? (
+          <p style={{ color: "#6b7280", textAlign: "center", padding: "40px" }}>
+            Bạn chưa có đơn hàng nào.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {orders.map((order) => (
+              <div
+                key={order.id}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  overflow: "hidden"
+                }}
+              >
+                <div
+                  style={{
+                    padding: "20px",
+                    background: "#f9fafb",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                  onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: "16px", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1f2937"
+                      }}>
+                        Đơn hàng #{order.id}
+                      </span>
+                      <span style={{
+                        padding: "4px 12px",
+                        background: getStatusColor(order.order_status),
+                        color: "white",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {getStatusText(order.order_status)}
+                      </span>
+                      <span style={{
+                        padding: "4px 12px",
+                        background: order.payment_status === 'paid' ? "#10b981" : "#f59e0b",
+                        color: "white",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {getPaymentStatusText(order.payment_status)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "24px", fontSize: "14px", color: "#6b7280" }}>
+                      <span>Ngày đặt: {formatDate(order.created_at)}</span>
+                      <span style={{ fontWeight: "600", color: "#059669", fontSize: "16px" }}>
+                        Tổng tiền: {new Intl.NumberFormat('vi-VN', {
+                          style: 'decimal',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        }).format(order.final_amount)}đ
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: "20px",
+                    color: "#6b7280",
+                    transform: expandedOrderId === order.id ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s"
+                  }}>
+                    ▼
+                  </div>
+                </div>
+
+                {expandedOrderId === order.id && (
+                  <div style={{ padding: "20px", background: "white" }}>
+                    {order.address && (
+                      <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #e5e7eb" }}>
+                        <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#1f2937" }}>
+                          Địa chỉ giao hàng
+                        </h3>
+                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
+                          <strong>Người nhận:</strong> {order.address.receiver_name}
+                        </p>
+                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
+                          <strong>Điện thoại:</strong> {order.address.receiver_phone}
+                        </p>
+                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
+                          <strong>Địa chỉ:</strong> {order.address.line1}, {order.address.city}, {order.address.province}
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: "20px" }}>
+                      <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#1f2937" }}>
+                        Sản phẩm
+                      </h3>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {order.items.map((item) => {
+                          const imageUrl = item.product?.image || 
+                                          item.product?.thumbnail_url || 
+                                          (item.product?.thumbnail ? getImageUrl(item.product.thumbnail) : null) ||
+                                          (item.product?.images && item.product.images.length > 0 ? getImageUrl(item.product.images[0]) : null);
+                          
+                          return (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: "flex",
+                              gap: "16px",
+                              padding: "12px",
+                              background: "#f9fafb",
+                              borderRadius: "8px",
+                              border: "1px solid #e5e7eb"
+                            }}
+                          >
+                            <img 
+                              src={imageUrl || "https://via.placeholder.com/100?text=No+Image"} 
+                              alt={item.product_name} 
+                              onError={(e) => {
+                                e.currentTarget.src = "https://via.placeholder.com/100?text=No+Image";
+                              }}
+                              style={{ 
+                                width: '80px', 
+                                height: '80px', 
+                                objectFit: 'cover', 
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
+                                flexShrink: 0
+                              }} 
+                            />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>
+                                {item.product_name}
+                              </p>
+                              {item.variant && (
+                                <p style={{ margin: "4px 0", fontSize: "14px", color: "#6b7280" }}>
+                                  {item.variant.color && `Màu: ${item.variant.color}`}
+                                  {item.variant.color && item.variant.size && ' • '}
+                                  {item.variant.size && `Size: ${item.variant.size}`}
+                                </p>
+                              )}
+                              <p style={{ margin: "4px 0", fontSize: "14px", color: "#6b7280" }}>
+                                Số lượng: {item.quantity}
+                              </p>
+                              <p style={{ margin: "8px 0 0 0", fontSize: "16px", fontWeight: "600", color: "#059669" }}>
+                                {new Intl.NumberFormat('vi-VN', {
+                                  style: 'decimal',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                }).format(item.price)}đ × {item.quantity} = {new Intl.NumberFormat('vi-VN', {
+                                  style: 'decimal',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                }).format(item.price * item.quantity)}đ
+                              </p>
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      paddingTop: "16px",
+                      borderTop: "2px solid #e5e7eb",
+                      textAlign: "right"
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+                        <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
+                          Tạm tính: {new Intl.NumberFormat('vi-VN', {
+                            style: 'decimal',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(order.items.reduce((sum, item) => sum + item.price * item.quantity, 0))}đ
+                        </p>
+                        {order.discount_amount > 0 && (
+                          <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
+                            Giảm giá: -{new Intl.NumberFormat('vi-VN', {
+                              style: 'decimal',
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            }).format(order.discount_amount)}đ
+                          </p>
+                        )}
+                        <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
+                          Phí vận chuyển: {new Intl.NumberFormat('vi-VN', {
+                            style: 'decimal',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(order.shipping_cost)}đ
+                        </p>
+                        <p style={{
+                          margin: "8px 0 0 0",
+                          fontSize: "20px",
+                          fontWeight: "700",
+                          color: "#059669"
+                        }}>
+                          Tổng cộng: {new Intl.NumberFormat('vi-VN', {
+                            style: 'decimal',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(order.final_amount)}đ
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
