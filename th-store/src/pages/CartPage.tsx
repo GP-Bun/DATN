@@ -89,7 +89,6 @@ export default function CartPage() {
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
     setDiscount(0);
-    setVoucher("");
     localStorage.removeItem("applied_coupon");
     localStorage.removeItem("coupon_discount");
     localStorage.removeItem("coupon_code");
