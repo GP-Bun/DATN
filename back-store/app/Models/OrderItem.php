@@ -16,7 +16,8 @@ class OrderItem extends Model
         'variant_id',
         'product_name',
         'quantity',
-        'price'
+        'price',
+        'total'
     ];
 
     /**

@@ -87,6 +87,13 @@ export default function OrderSuccessPage() {
     return statusMap[status] || status
   }
 
+  const getImageUrl = (image: string | undefined | null) => {
+    if (!image) return "https://via.placeholder.com/150?text=No+Image";
+    if (image.startsWith("http")) return image;
+    if (image.startsWith("/")) return `http://127.0.0.1:8000${image}`;
+    return `http://127.0.0.1:8000/storage/${image}`;
+  }
+
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -136,15 +143,28 @@ export default function OrderSuccessPage() {
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {order.items.map((item) => (
+            {order.items.map((item) => {
+              const imageUrl = item.product?.image || 
+                              item.product?.thumbnail_url || 
+                              (item.product?.thumbnail ? getImageUrl(item.product.thumbnail) : null) ||
+                              (item.product?.images && item.product.images.length > 0 ? getImageUrl(item.product.images[0]) : null);
+              
+              return (
               <div key={item.id} style={{ display: 'flex', gap: '16px', padding: '16px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                {item.product?.image ? (
-                  <img src={item.product.image} alt={item.product_name} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px' }} />
-                ) : (
-                  <div style={{ width: '100px', height: '100px', background: '#e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
-                    No Image
-                  </div>
-                )}
+                <img 
+                  src={imageUrl || "https://via.placeholder.com/150?text=No+Image"} 
+                  alt={item.product_name} 
+                  onError={(e) => {
+                    e.currentTarget.src = "https://via.placeholder.com/150?text=No+Image";
+                  }}
+                  style={{ 
+                    width: '100px', 
+                    height: '100px', 
+                    objectFit: 'cover', 
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }} 
+                />
                 <div style={{ flex: 1 }}>
                   <h3 style={{ marginBottom: '8px', fontSize: '18px' }}>{item.product_name}</h3>
                   {item.variant && (
@@ -173,7 +193,8 @@ export default function OrderSuccessPage() {
                   </p>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid #e5e7eb', textAlign: 'right' }}>

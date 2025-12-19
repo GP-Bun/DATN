@@ -11,6 +11,7 @@ use App\Models\Address;
 use App\Models\Coupon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class CheckoutController extends Controller
 {
@@ -24,29 +25,46 @@ class CheckoutController extends Controller
             'phone'        => 'required_without:address_id|string|max:20',
             'address'      => 'required_without:address_id|string|max:255',
             'city'         => 'required_without:address_id|string|max:255',
-            'coupon_code'  => 'nullable|string|exists:coupons,code',
+            'province'     => 'nullable|string|max:255',
+            'payment_method' => 'required|string|in:cod,bank_transfer',
+            'coupon_code'  => 'nullable|string',
         ]);
 
         $cart = Cart::where('user_id', $user->id)
-            ->with('items.product', 'items.variant')
+            ->with(['items.product', 'items.variant'])
             ->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
+        if (!$cart) {
+            return response()->json(['message' => 'Giỏ hàng không tồn tại'], 400);
+        }
+
+        if ($cart->items->isEmpty()) {
             return response()->json(['message' => 'Giỏ hàng trống'], 400);
+        }
+
+        // Kiểm tra tất cả items có product không
+        foreach ($cart->items as $item) {
+            if (!$item->product) {
+                return response()->json(['message' => "Sản phẩm trong giỏ hàng không tồn tại"], 400);
+            }
         }
 
         DB::beginTransaction();
         try {
             // Nếu không có address_id thì tạo mới
-            $addressId = $request->address_id ?: Address::create([
-                'user_id'        => $user->id,
-                'receiver_name'  => $request->full_name,
-                'receiver_phone' => $request->phone,
-                'line1'          => $request->address,
-                'city'           => $request->city,
-                'province'       => $request->city,
-                'is_default'     => false,
-            ])->id;
+            try {
+                $addressId = $request->address_id ?: Address::create([
+                    'user_id'        => $user->id,
+                    'receiver_name'  => $request->full_name,
+                    'receiver_phone' => $request->phone,
+                    'line1'          => $request->address,
+                    'city'           => $request->city,
+                    'province'       => $request->province ? $request->province : $request->city,
+                    'is_default'     => false,
+                ])->id;
+            } catch (\Exception $e) {
+                throw new \Exception("Lỗi tạo địa chỉ: " . $e->getMessage());
+            }
 
             $total = 0;
             $shippingCost = 0; // bạn có thể thay đổi logic tính phí ship
@@ -56,45 +74,76 @@ class CheckoutController extends Controller
                 'address_id'     => $addressId,
                 'order_status'   => 'pending',
                 'payment_status' => 'unpaid',
+                'payment_method' => $request->payment_method,
                 'shipping_cost'  => $shippingCost,
                 'discount_amount'=> 0,
                 'final_amount'   => 0,
             ]);
 
             foreach ($cart->items as $cartItem) {
-                // Trừ tồn kho
-                if ($cartItem->variant_id) {
-                    $variant = $cartItem->variant;
-                    if (!$variant || $variant->stock < $cartItem->quantity) {
-                        throw new \Exception("Biến thể {$cartItem->product->name} không đủ tồn kho");
-                    }
-                    $variant->decrement('stock', $cartItem->quantity);
-                    $variant->product->auto_status = $variant->product->variants()->where('stock','>',0)->exists() ? 1 : 2;
-                    $variant->product->save();
-                } else {
+                try {
                     $product = $cartItem->product;
-                    if (!$product || $product->stock < $cartItem->quantity) {
-                        throw new \Exception("Sản phẩm {$product->name} không đủ tồn kho");
+                    if (!$product) {
+                        throw new \Exception("Sản phẩm không tồn tại");
                     }
-                    $product->decrement('stock', $cartItem->quantity);
-                    $product->auto_status = $product->stock > 0 ? 1 : 2;
-                    $product->save();
+
+                    // Trừ tồn kho
+                    if ($cartItem->variant_id) {
+                        $variant = $cartItem->variant;
+                        if (!$variant) {
+                            throw new \Exception("Biến thể sản phẩm không tồn tại");
+                        }
+                        if ($variant->stock < $cartItem->quantity) {
+                            throw new \Exception("Biến thể {$product->name} không đủ tồn kho (còn {$variant->stock}, cần {$cartItem->quantity})");
+                        }
+                        $variant->decrement('stock', $cartItem->quantity);
+                        // Cập nhật trạng thái sản phẩm
+                        if ($product->variants()->where('stock', '>', 0)->exists()) {
+                            $product->auto_status = 1;
+                        } else {
+                            $product->auto_status = 2;
+                        }
+                        $product->save();
+                    } else {
+                        if ($product->stock < $cartItem->quantity) {
+                            throw new \Exception("Sản phẩm {$product->name} không đủ tồn kho (còn {$product->stock}, cần {$cartItem->quantity})");
+                        }
+                        $product->decrement('stock', $cartItem->quantity);
+                        $product->auto_status = $product->stock > 0 ? 1 : 2;
+                        $product->save();
+                    }
+
+                    // Tính tổng tiền từng item
+                    $lineTotal = $cartItem->price * $cartItem->quantity;
+
+                    // Tạo order item
+                    $orderItemData = [
+                        'order_id'     => $order->id,
+                        'product_name' => $product->name,
+                        'quantity'     => $cartItem->quantity,
+                        'price'        => $cartItem->price,
+                    ];
+
+                    // Chỉ thêm các cột nếu chúng tồn tại trong database
+                    if (Schema::hasColumn('order_items', 'product_id')) {
+                        $orderItemData['product_id'] = $cartItem->product_id;
+                    }
+                    
+                    if ($cartItem->variant_id && Schema::hasColumn('order_items', 'variant_id')) {
+                        $orderItemData['variant_id'] = $cartItem->variant_id;
+                    }
+                    
+                    if (Schema::hasColumn('order_items', 'total')) {
+                        $orderItemData['total'] = $lineTotal;
+                    }
+
+                    OrderItem::create($orderItemData);
+
+                    $total += $lineTotal;
+                } catch (\Exception $e) {
+                    $productName = $product ? ($product->name ? $product->name : 'Unknown') : 'Unknown';
+                    throw new \Exception("Lỗi xử lý sản phẩm '{$productName}': " . $e->getMessage());
                 }
-
-                // Tính tổng tiền từng item
-                $lineTotal = $cartItem->price * $cartItem->quantity;
-
-                OrderItem::create([
-                    'order_id'     => $order->id,
-                    'product_id'   => $cartItem->product_id,
-                    'variant_id'   => $cartItem->variant_id,
-                    'product_name' => $cartItem->product->name ?? 'Sản phẩm',
-                    'quantity'     => $cartItem->quantity,
-                    'price'        => $cartItem->price,
-                    'total'        => $lineTotal,
-                ]);
-
-                $total += $lineTotal;
             }
 
             // Áp dụng coupon nếu có
@@ -156,15 +205,66 @@ class CheckoutController extends Controller
 
             DB::commit();
 
-            return response()->json([
+            // Load order với relationships
+            $order = $order->load(['items.product','items.variant','address','coupon']);
+            
+            // Format image URLs cho products trong order items
+            $order->items->each(function ($item) {
+                if ($item->product) {
+                    // Chuyển đổi thumbnail thành URL đầy đủ
+                    if ($item->product->thumbnail) {
+                        $item->product->image = url('storage/' . $item->product->thumbnail);
+                        $item->product->thumbnail_url = url('storage/' . $item->product->thumbnail);
+                    } elseif ($item->product->images && is_array($item->product->images) && count($item->product->images) > 0) {
+                        // Nếu không có thumbnail, lấy ảnh đầu tiên
+                        $item->product->image = url('storage/' . $item->product->images[0]);
+                    }
+                }
+            });
+
+            $response = [
                 'message' => 'Đặt hàng thành công',
-                'order'   => $order->load(['items.product','items.variant','address','coupon'])
-            ]);
+                'order'   => $order
+            ];
+
+            // Nếu là chuyển khoản, tạo QR code
+            if ($request->payment_method === 'bank_transfer') {
+                $bankAccount = "123456789";
+                $bankName    = "Vietcombank";
+                $accountName = "CONG TY TNHH THUONG MAI";
+                
+                // Tạo QR code data theo chuẩn VietQR
+                $qrData = "2|99|{$bankAccount}|{$finalAmount}|Thanh toan don hang #{$order->id}|{$accountName}";
+                
+                // Tạo URL QR code image (sử dụng API online)
+                $qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrData);
+                
+                $response['qr_code'] = [
+                    'data' => $qrData,
+                    'image_url' => $qrCodeUrl,
+                    'bank_account' => $bankAccount,
+                    'bank_name' => $bankName,
+                    'account_name' => $accountName,
+                    'amount' => $finalAmount,
+                    'order_id' => $order->id
+                ];
+            }
+
+            return response()->json($response);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Lỗi xác thực dữ liệu',
+                'errors'  => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Checkout error: '.$e->getMessage());
+            Log::error('Checkout error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user ? $user->id : null
+            ]);
             return response()->json([
-                'message' => 'Có lỗi xảy ra khi đặt hàng',
+                'message' => $e->getMessage() ?: 'Có lỗi xảy ra khi đặt hàng',
                 'error'   => $e->getMessage()
             ], 500);
         }

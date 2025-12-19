@@ -19,9 +19,25 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $orders = Order::where('user_id', $request->user()->id)
-            ->with('items')
+            ->with(['items.product', 'items.variant', 'address'])
             ->latest()
             ->get();
+
+        // Format image URLs cho products trong order items
+        $orders->each(function ($order) {
+            $order->items->each(function ($item) {
+                if ($item->product) {
+                    // Chuyển đổi thumbnail thành URL đầy đủ
+                    if ($item->product->thumbnail) {
+                        $item->product->image = url('storage/' . $item->product->thumbnail);
+                        $item->product->thumbnail_url = url('storage/' . $item->product->thumbnail);
+                    } elseif ($item->product->images && is_array($item->product->images) && count($item->product->images) > 0) {
+                        // Nếu không có thumbnail, lấy ảnh đầu tiên
+                        $item->product->image = url('storage/' . $item->product->images[0]);
+                    }
+                }
+            });
+        });
 
         return response()->json($orders);
     }
@@ -34,7 +50,23 @@ class OrderController extends Controller
             return response()->json(['message' => 'Không có quyền truy cập'], 403);
         }
 
-        return response()->json($order->load('items'));
+        $order = $order->load(['items.product', 'items.variant']);
+        
+        // Format image URLs cho products trong order items
+        $order->items->each(function ($item) {
+            if ($item->product) {
+                // Chuyển đổi thumbnail thành URL đầy đủ
+                if ($item->product->thumbnail) {
+                    $item->product->image = url('storage/' . $item->product->thumbnail);
+                    $item->product->thumbnail_url = url('storage/' . $item->product->thumbnail);
+                } elseif ($item->product->images && is_array($item->product->images) && count($item->product->images) > 0) {
+                    // Nếu không có thumbnail, lấy ảnh đầu tiên
+                    $item->product->image = url('storage/' . $item->product->images[0]);
+                }
+            }
+        });
+
+        return response()->json($order);
     }
 
     // Admin cập nhật trạng thái đơn hàng

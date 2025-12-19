@@ -3,6 +3,7 @@ import { useAuth } from '../store/AuthContext'
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { checkout } from '../api/checkout.api'
+import type { CheckoutPayload } from '../api/checkout.api'
 import { formatPrice } from '../utils/formatPrice'
 import { vietnamProvinces } from "../data/vietnam.provinces";
 import { vietnamDistricts } from "../data/vietnam.districts";
@@ -25,6 +26,10 @@ export default function CheckoutPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [couponCode, setCouponCode] = useState<string | null>(null)
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [qrData, setQrData] = useState<any>(null)
+  const [currentOrder, setCurrentOrder] = useState<any>(null)
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false)
 
   // Load coupon từ localStorage
   useEffect(() => {
@@ -37,40 +42,84 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const checkoutData: any = {
-      full_name: formData.fullName,
-      phone: formData.phone,
-      address: formData.address,
-      city: formData.city,
-      province: formData.province,
-      payment_method: formData.paymentMethod
+    // Validate form
+    if (!formData.fullName || !formData.phone || !formData.address || !formData.city) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc!')
+      return
+    }
+
+    const checkoutData: CheckoutPayload = {
+      full_name: formData.fullName.trim(),
+      phone: formData.phone.trim(),
+      address: formData.address.trim(),
+      city: formData.city.trim(),
+      province: formData.province?.trim() || undefined,
+      payment_method: formData.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'cod'
     }
 
     // Thêm coupon_code nếu có
     if (couponCode) {
-      checkoutData.coupon_code = couponCode;
+      checkoutData.coupon_code = couponCode.trim();
     }
 
     setIsSubmitting(true)
     try {
+      console.log('Sending checkout data:', checkoutData)
       const response = await checkout(checkoutData)
+      console.log('Checkout response:', response)
+      
+      if (!response || !response.order) {
+        throw new Error('Không nhận được dữ liệu đơn hàng từ server')
+      }
+
       const order = response.order
 
-      // Xóa giỏ hàng và coupon sau khi đặt hàng thành công
-      await clearCart()
-      await reloadCart()
-      localStorage.removeItem("applied_coupon");
-      localStorage.removeItem("coupon_discount");
-      localStorage.removeItem("coupon_code");
+      // Nếu là chuyển khoản và có QR code
+      if (formData.paymentMethod === 'bank_transfer' && response.qr_code) {
+        setQrData(response.qr_code)
+        setCurrentOrder(order)
+        setShowQRModal(true)
+        setIsCheckingPayment(true)
+        startPaymentPolling(order.id)
+      } else {
+        // COD - xóa giỏ hàng và chuyển đến trang thành công
+        await clearCart()
+        await reloadCart()
+        localStorage.removeItem("applied_coupon");
+        localStorage.removeItem("coupon_discount");
+        localStorage.removeItem("coupon_code");
 
-      // Chuyển đến trang thành công với dữ liệu đơn hàng
-      navigate('/dat-hang-thanh-cong', {
-        state: { order }
-      })
+        navigate('/dat-hang-thanh-cong', {
+          state: { order }
+        })
+      }
     } catch (err: any) {
-      console.error(err)
-      const errorMessage = err?.response?.data?.message || 'Đặt hàng thất bại! Vui lòng thử lại.'
-      alert(errorMessage)
+      console.error('Checkout error:', err)
+      console.error('Error response:', err?.response?.data)
+      console.error('Error status:', err?.response?.status)
+      
+      let errorMessage = 'Đặt hàng thất bại! Vui lòng thử lại.'
+      
+      if (err?.response?.data) {
+        // Nếu có validation errors
+        if (err.response.data.errors) {
+          const errors = err.response.data.errors
+          const errorList = Object.keys(errors).map(key => {
+            return `${key}: ${errors[key].join(', ')}`
+          }).join('\n')
+          errorMessage = `Lỗi xác thực:\n${errorList}`
+        } else if (err.response.data.error) {
+          // Ưu tiên hiển thị error message chi tiết
+          errorMessage = err.response.data.error
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message
+        }
+      } else if (err?.message) {
+        errorMessage = err.message
+      }
+      
+      // Hiển thị lỗi chi tiết hơn
+      alert(`Lỗi: ${errorMessage}\n\nVui lòng kiểm tra:\n- Thông tin đã điền đầy đủ chưa\n- Sản phẩm còn tồn kho không\n- Kết nối mạng`)
     } finally {
       setIsSubmitting(false)
     }
@@ -89,6 +138,50 @@ export default function CheckoutPage() {
     if (image.startsWith("http")) return image;
     if (image.startsWith("/")) return `http://127.0.0.1:8000${image}`;
     return `http://127.0.0.1:8000/storage/${image}`;
+  };
+
+  // Polling để kiểm tra thanh toán
+  const startPaymentPolling = (orderId: number) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+        const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const order = await response.json();
+          if (order.payment_status === 'paid') {
+            clearInterval(pollInterval);
+            setIsCheckingPayment(false);
+            
+            // Xóa giỏ hàng và coupon
+            await clearCart()
+            await reloadCart()
+            localStorage.removeItem("applied_coupon");
+            localStorage.removeItem("coupon_discount");
+            localStorage.removeItem("coupon_code");
+            
+            // Đóng modal và chuyển đến trang thành công
+            setShowQRModal(false);
+            navigate('/dat-hang-thanh-cong', {
+              state: { order }
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi kiểm tra thanh toán:', err);
+      }
+    }, 3000); // Kiểm tra mỗi 3 giây
+
+    // Dừng polling sau 10 phút
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      setIsCheckingPayment(false);
+    }, 600000);
   };
 
 
@@ -439,8 +532,7 @@ export default function CheckoutPage() {
                 }}
               >
                 <option value="cod">Thanh toán khi nhận hàng (COD)</option>
-                <option value="bank">Chuyển khoản ngân hàng</option>
-                <option value="card">Thẻ tín dụng</option>
+                <option value="bank_transfer">Chuyển khoản ngân hàng</option>
               </select>
             </div>
 
@@ -661,6 +753,270 @@ export default function CheckoutPage() {
           </Link>
         </div>
       </div>
+
+      {/* MODAL QR CODE */}
+      {showQRModal && qrData && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "20px"
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: "16px",
+            padding: "32px",
+            maxWidth: "500px",
+            width: "100%",
+            position: "relative"
+          }}>
+            <button
+              onClick={() => {
+                setShowQRModal(false);
+                setIsCheckingPayment(false);
+              }}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                background: "transparent",
+                border: "none",
+                fontSize: "24px",
+                cursor: "pointer",
+                color: "#6b7280",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.color = "#1f2937";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#6b7280";
+              }}
+            >
+              ×
+            </button>
+
+            <div style={{ textAlign: "center" }}>
+              <h2 style={{
+                margin: "0 0 8px 0",
+                fontSize: "24px",
+                fontWeight: "700",
+                color: "#1f2937"
+              }}>
+                Quét mã QR để thanh toán
+              </h2>
+              <p style={{
+                margin: "0 0 24px 0",
+                fontSize: "14px",
+                color: "#6b7280"
+              }}>
+                Đơn hàng #{currentOrder?.id}
+              </p>
+
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "24px"
+              }}>
+                <img
+                  src={qrData.image_url}
+                  alt="QR Code"
+                  style={{
+                    width: "300px",
+                    height: "300px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    background: "white"
+                  }}
+                />
+              </div>
+
+              <div style={{
+                background: "#f9fafb",
+                borderRadius: "8px",
+                padding: "16px",
+                marginBottom: "24px",
+                textAlign: "left"
+              }}>
+                <div style={{ marginBottom: "8px" }}>
+                  <span style={{ fontSize: "14px", color: "#6b7280" }}>Ngân hàng: </span>
+                  <strong style={{ fontSize: "14px", color: "#1f2937" }}>{qrData.bank_name}</strong>
+                </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <span style={{ fontSize: "14px", color: "#6b7280" }}>Số tài khoản: </span>
+                  <strong style={{ fontSize: "14px", color: "#1f2937" }}>{qrData.bank_account}</strong>
+                </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <span style={{ fontSize: "14px", color: "#6b7280" }}>Chủ tài khoản: </span>
+                  <strong style={{ fontSize: "14px", color: "#1f2937" }}>{qrData.account_name}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: "14px", color: "#6b7280" }}>Số tiền: </span>
+                  <strong style={{ fontSize: "16px", color: "#059669" }}>
+                    {new Intl.NumberFormat('vi-VN', {
+                      style: 'decimal',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(qrData.amount)}đ
+                  </strong>
+                </div>
+              </div>
+
+              {isCheckingPayment && (
+                <div style={{
+                  padding: "16px",
+                  background: "#eff6ff",
+                  borderRadius: "8px",
+                  marginBottom: "16px"
+                }}>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px"
+                  }}>
+                    <div style={{
+                      width: "20px",
+                      height: "20px",
+                      border: "3px solid #3b82f6",
+                      borderTop: "3px solid transparent",
+                      borderRadius: "50%",
+                      animation: "spin 1s linear infinite"
+                    }}></div>
+                    <span style={{ fontSize: "14px", color: "#3b82f6", fontWeight: "600" }}>
+                      Đang chờ thanh toán...
+                    </span>
+                  </div>
+                  <p style={{
+                    margin: "8px 0 0 0",
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    textAlign: "center"
+                  }}>
+                    Hệ thống sẽ tự động xác nhận khi bạn thanh toán thành công
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+                      const transactionId = `TXN${currentOrder.id}${Date.now()}`;
+                      
+                      const response = await fetch(`http://127.0.0.1:8000/api/orders/${currentOrder.id}/confirm-payment`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json',
+                          'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          transaction_id: transactionId
+                        })
+                      });
+
+                      if (response.ok) {
+                        const result = await response.json();
+                        setIsCheckingPayment(false);
+                        
+                        // Xóa giỏ hàng và coupon
+                        await clearCart()
+                        await reloadCart()
+                        localStorage.removeItem("applied_coupon");
+                        localStorage.removeItem("coupon_discount");
+                        localStorage.removeItem("coupon_code");
+                        
+                        // Đóng modal và chuyển đến trang thành công
+                        setShowQRModal(false);
+                        navigate('/dat-hang-thanh-cong', {
+                          state: { order: result.order }
+                        });
+                      } else {
+                        const error = await response.json();
+                        alert(error.message || 'Có lỗi xảy ra khi xác nhận thanh toán');
+                      }
+                    } catch (err) {
+                      console.error('Lỗi xác nhận thanh toán:', err);
+                      alert('Có lỗi xảy ra khi xác nhận thanh toán');
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "12px 24px",
+                    background: "#10b981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#059669";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#10b981";
+                  }}
+                >
+                  Đã thanh toán
+                </button>
+                <button
+                  onClick={() => {
+                    setShowQRModal(false);
+                    setIsCheckingPayment(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "12px 24px",
+                    background: "#f3f4f6",
+                    color: "#374151",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#e5e7eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#f3f4f6";
+                  }}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
