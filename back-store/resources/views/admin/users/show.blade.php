@@ -84,7 +84,8 @@
                 <div class="card-body">
                     @forelse($user->reviews as $review)
                         <div class="mb-2 border-bottom pb-2">
-                            <strong>{{ $review->product->name }}</strong> <br>
+                            <strong>{{ optional($review->product)->name ?? 'Sản phẩm không tồn tại' }}</strong>
+
                             <span class="text-warning">{{ str_repeat('⭐', $review->rating) }}</span> <br>
                             <em>{{ $review->comment }}</em>
                         </div>
