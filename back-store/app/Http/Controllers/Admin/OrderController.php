@@ -9,15 +9,32 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    public function index()
-    {
-        $orders = Order::with('user')->paginate(10);
-        return view('admin.orders.index', compact('orders'));
+    public function index(Request $request)
+{
+    $query = Order::with('user')->orderBy('created_at', 'desc');
+
+    // Lọc theo tên khách hàng
+    if ($request->filled('keyword')) {
+        $query->whereHas('user', function ($q) use ($request) {
+            $q->where('name', 'like', '%' . $request->keyword . '%');
+        });
     }
+
+    // Lọc theo trạng thái đơn hàng
+    if ($request->filled('status')) {
+        $query->where('order_status', $request->status);
+    }
+
+    $orders = $query->paginate(10)->appends($request->all());
+
+    return view('admin.orders.index', compact('orders'));
+}
+
+
 
     public function show(Order $order)
     {
-        $order->load('items.product', 'items.variant', 'user');
+        $order->load('items.product', 'items.variant', 'user', 'address', 'couponRedemptions.coupon');
         return view('admin.orders.show', compact('order'));
     }
 
@@ -26,6 +43,25 @@ class OrderController extends Controller
         $request->validate([
             'order_status' => 'required|in:pending,processing,shipped,delivered,cancelled'
         ]);
+
+        $current = $order->order_status;
+        $next = $request->order_status;
+
+        // Định nghĩa luồng trạng thái hợp lệ
+        $allowedTransitions = [
+            'pending' => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['delivered'],
+            'delivered' => [],
+            'cancelled' => [],
+        ];
+
+        // Kiểm tra xem chuyển đổi có hợp lệ không 
+        if (!in_array($next, $allowedTransitions[$current] ?? [])) {
+            return back()->withErrors([
+                'order_status' => "Không thể chuyển từ trạng thái '{$current}' sang '{$next}'."
+            ]);
+        }
 
         // Nếu admin muốn chuyển sang trạng thái "shipped"
         if ($request->order_status === 'shipped') {
@@ -109,5 +145,49 @@ class OrderController extends Controller
         $finalAmount = $orderAmount - $discount;
 
         return back()->with('success', "Áp dụng voucher thành công! Giảm giá: {$discount}, Tổng thanh toán: {$finalAmount}");
+    }
+
+    public function updatePayment(Request $request, Order $order)
+    {
+        $request->validate([
+            'payment_status' => 'required|in:pending,paid,refunded'
+        ]);
+
+        $current = $order->payment_status;
+        $next = $request->payment_status;
+
+        $allowedPaymentTransitions = [
+            'unpaid' => ['paid', 'cancelled'],
+            'paid' => ['refunded'],
+            'refunded' => [],
+            'cancelled' => [],
+        ];
+
+        if (!in_array($next, $allowedPaymentTransitions[$current] ?? [])) {
+            return back()->withErrors(['payment_status' => "Không thể chuyển từ trạng thái '{$current}' sang '{$next}'."]);
+        }
+
+        $order->update([
+            'payment_status' => $request->payment_status,
+            'paid_at' => $request->payment_status === 'paid' ? now() : null,
+        ]);
+
+        return back()->with('success', 'Cập nhật trạng thái thanh toán thành công!');
+    }
+
+    public function search(Request $request)
+    {
+        $keyword = $request->get('keyword');
+
+        $orders = Order::with('user')
+            ->whereHas('user', function ($q) use ($keyword) {
+                $q->where('name', 'like', '%' . $keyword . '%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Trả về JSON để frontend xử lý
+        return response()->json($orders);
     }
 }

@@ -126,4 +126,49 @@ class Order extends Model
     {
         return $this->items->sum(fn($item) => $item->quantity * $item->price);
     }
+
+    public function couponRedemptions()
+    {
+        return $this->hasMany(CouponRedemption::class);
+    }
+
+    public function getOrderStatusLabelAttribute()
+    {
+        return [
+            'pending'    => 'Chờ xử lý',
+            'processing' => 'Đang xử lý',
+            'shipped'    => 'Đã gửi hàng',
+            'delivered'  => 'Đã giao',
+            'cancelled'  => 'Đã hủy',
+        ][$this->order_status] ?? $this->order_status;
+    }
+
+    public function getOrderStatusColorAttribute()
+    {
+        return [
+            'pending'    => 'warning text-dark',
+            'processing' => 'info text-dark',
+            'shipped'    => 'primary',
+            'delivered'  => 'success',
+            'cancelled'  => 'danger',
+        ][$this->order_status] ?? 'secondary';
+    }
+
+    public function getPaymentStatusLabelAttribute()
+    {
+        return [
+            'unpaid'   => 'Chưa thanh toán',
+            'paid'     => 'Đã thanh toán',
+            'refunded' => 'Đã hoàn tiền',
+        ][$this->payment_status] ?? $this->payment_status;
+    }
+
+    public function getPaymentStatusColorAttribute()
+    {
+        return [
+            'unpaid'   => 'danger',
+            'paid'     => 'success',
+            'refunded' => 'warning text-dark',
+        ][$this->payment_status] ?? 'secondary';
+    }
 }

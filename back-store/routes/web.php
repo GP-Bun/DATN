@@ -63,6 +63,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Products
     Route::resource('products', AdminProductController::class);
 
+     // live search
+    Route::get('orders/search', [AdminOrderController::class, 'search'])->name('orders.search');
+
 
 
     // Product Variants (nested)
@@ -81,6 +84,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // Orders
     Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
+
+    // Thêm route cập nhật trạng thái thanh toán 
+    Route::put('orders/{order}/update-payment', [AdminOrderController::class, 'updatePayment']) ->name('orders.updatePayment');
 
     // Coupons
     Route::resource('coupons', AdminCouponController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
