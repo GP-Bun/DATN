@@ -15,7 +15,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = Product::with(['category'])
-            ->available()
+            ->visible()
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -30,6 +30,7 @@ class ProductController extends Controller
                     return url('storage/' . $img);
                 }, $product->images);
             }
+
             return $product;
         });
 
