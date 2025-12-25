@@ -10,25 +10,39 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     public function index(Request $request)
-{
-    $query = Order::with('user')->orderBy('created_at', 'desc');
+    {
+        $query = Order::with('user')->orderBy('created_at', 'desc');
 
-    // Lọc theo tên khách hàng
-    if ($request->filled('keyword')) {
-        $query->whereHas('user', function ($q) use ($request) {
-            $q->where('name', 'like', '%' . $request->keyword . '%');
-        });
+        // Lọc theo tên khách hàng
+        if ($request->filled('keyword')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->keyword . '%');
+            });
+        }
+
+        // Lọc theo trạng thái đơn hàng
+        if ($request->filled('status')) {
+            $query->where('order_status', $request->status);
+        }
+
+        // Lọc theo ngày cụ thể 
+        if ($request->filled('day')) {
+            $query->whereDate('created_at', $request->day);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+        // Lọc theo tháng/năm 
+        if ($request->filled('month')) {
+            [$year, $month] = explode('-', $request->month);
+            $query->whereYear('created_at', $year)
+                ->whereMonth('created_at', $month);
+        }
+
+        $orders = $query->paginate(10)->appends($request->all());
+
+        return view('admin.orders.index', compact('orders'));
     }
-
-    // Lọc theo trạng thái đơn hàng
-    if ($request->filled('status')) {
-        $query->where('order_status', $request->status);
-    }
-
-    $orders = $query->paginate(10)->appends($request->all());
-
-    return view('admin.orders.index', compact('orders'));
-}
 
 
 

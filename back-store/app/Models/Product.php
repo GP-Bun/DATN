@@ -26,6 +26,8 @@ class Product extends Model
         'images' => 'array',
     ];
 
+    
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -51,9 +53,27 @@ class Product extends Model
         };
     }
 
-    public function scopeAvailable($query)
-{
-    return $query->where('status', 1); // chỉ lấy sản phẩm còn hàng
-}
+    // ✅ Trả về boolean hết hàng 
+    public function getIsOutOfStockAttribute()
+    {
+        return $this->status == 2;
+    }
 
+    // ✅ Scope: chỉ lấy sản phẩm còn hàng 
+    public function scopeAvailable($query)
+    {
+        return $query->where('status', 1);
+    }
+
+    // ✅ Scope: lấy tất cả sản phẩm hiển thị (còn hàng + hết hàng) 
+    public function scopeVisible($query)
+    {
+        return $query->whereIn('status', [1, 2]);
+    }
+
+    // ✅ Scope: chỉ lấy sản phẩm hết hàng 
+    public function scopeOutOfStock($query)
+    {
+        return $query->where('status', 2);
+    }
 }
