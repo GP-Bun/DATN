@@ -7,7 +7,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\CouponController as ApiCouponController;
 use App\Http\Controllers\Api\ProductController as ApiProductController;
 use App\Http\Controllers\Api\ColorController;
-use App\Http\Controllers\Api\CartController; 
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ReviewController;
 // use App\Http\Controllers\HomeController;
@@ -16,10 +16,16 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminReviewController;
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\Geo\ProvinceController;
+use App\Http\Controllers\Api\Geo\DistrictController;
+use App\Http\Controllers\Api\Geo\WardController;
+use App\Models\Province;
 
 
 // Route::get('/home', [HomeController::class, 'index']);
-
+Route::get('/geo-tree', function () {
+    return response()->json(['data' => Province::with('districts.wards')->get()]);
+});
 // Test API
 Route::get('/test', fn() => response()->json(['message' => 'API OK!']));
 
@@ -31,12 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user-profile', function (Request $request) {
         $user = $request->user();
         $user->load('addresses');
-        
+
         // Thêm avatar URL nếu có
         if ($user->avatar) {
             $user->avatar_url = \Illuminate\Support\Facades\Storage::url($user->avatar);
         }
-        
+
         return response()->json([
             'message' => 'Lấy thông tin người dùng thành công!',
             'user' => $user
@@ -45,12 +51,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/user-profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    
+
     // Address routes
     Route::get('/addresses', [AddressController::class, 'index']);
     Route::post('/addresses', [AddressController::class, 'store']);
     Route::put('/addresses/{address}', [AddressController::class, 'update']);
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
+    Route::post('/addresses/{address}/set-default', [AddressController::class, 'setDefault']);
 });
 
 // Admin routes
@@ -93,11 +100,11 @@ Route::prefix('products')->group(function () {
 
 // CART API (PUBLIC)
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
-    Route::get('/', [CartController::class, 'index']);       
-    Route::post('/', [CartController::class, 'add']);        
-    Route::put('/{item}', [CartController::class, 'update']); 
-    Route::delete('/{item}', [CartController::class, 'remove']); 
-    Route::delete('/', [CartController::class, 'clear']);    
+    Route::get('/', [CartController::class, 'index']);
+    Route::post('/', [CartController::class, 'add']);
+    Route::put('/{item}', [CartController::class, 'update']);
+    Route::delete('/{item}', [CartController::class, 'remove']);
+    Route::delete('/', [CartController::class, 'clear']);
 });
 
 
@@ -106,7 +113,7 @@ Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('a
 
 // USER — cần đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
-     Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);       // Lấy danh sách đơn hàng của user
     Route::get('/orders/{order}', [OrderController::class, 'show']); // Xem chi tiết đơn hàng
     Route::post('/orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment']); // ✅ Xác nhận thanh toán
@@ -119,7 +126,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 });
 
 // COLORS
-Route::apiResource('colors', ColorController::class)->only(['index','store','destroy']);
+Route::apiResource('colors', ColorController::class)->only(['index', 'store', 'destroy']);
 
 // HOME API
 Route::get('/home', [HomeController::class, 'index']);
@@ -151,4 +158,13 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::put('/{id}/status', [AdminReviewController::class, 'updateStatus']);
         Route::delete('/{id}', [AdminReviewController::class, 'destroy']);
     });
+});
+
+Route::prefix('geo')->group(function () {
+    // Lấy danh sách tỉnh/thành (34 tỉnh theo dữ liệu JSON) 
+    Route::get('provinces', [ProvinceController::class, 'index']);
+    // Lấy danh sách quận/huyện theo province_id 
+    Route::get('districts', [DistrictController::class, 'index']);
+    // Lấy danh sách xã/phường theo district_id 
+    Route::get('wards', [WardController::class, 'index']);
 });

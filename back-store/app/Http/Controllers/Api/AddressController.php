@@ -5,37 +5,46 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Address;
+use App\Http\Resources\AddressResource;
+
 
 class AddressController extends Controller
 {
     // Danh sách địa chỉ của user
     public function index(Request $request)
     {
-        $addresses = Address::where('user_id', $request->user()->id)->get();
-        return response()->json($addresses);
+        $addresses = $request->user()->addresses()
+            ->with(['province', 'district', 'ward'])
+            ->orderByDesc('is_default')
+            ->get();
+
+        return AddressResource::collection($addresses);
     }
 
     // Thêm địa chỉ mới
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'receiver_name' => 'required|string|max:255',
-            'receiver_phone' => 'required|string|max:20',
-            'line1'         => 'required|string|max:255',
-            'city'           => 'required|string|max:255',
-            'province'       => 'required|string|max:255',
-            'zip'            => 'nullable|string|max:10',
-            'is_default'     => 'boolean',
+        $validated = $request->validate([
+            'receiver_name'   => 'required|string|max:255',
+            'receiver_phone'  => 'required|string|max:20',
+            'line1'           => 'required|string|max:255',
+            'province_id'     => 'required|exists:provinces,id',
+            'district_id'     => 'required|exists:districts,id',
+            'ward_id'         => 'required|exists:wards,id',
+            'province_code'   => 'nullable|string|max:10',
+            'district_code'   => 'nullable|string|max:10',
+            'ward_code'       => 'nullable|string|max:10',
+            'zip'             => 'nullable|string|max:20',
+            'is_default'      => 'boolean'
         ]);
 
-        $data['user_id'] = $request->user()->id;
-
-        if (!empty($data['is_default']) && $data['is_default']) {
-            Address::where('user_id', $request->user()->id)->update(['is_default' => false]);
+        if ($validated['is_default'] ?? false) {
+            $request->user()->addresses()->update(['is_default' => false]);
         }
 
-        $address = Address::create($data);
-        return response()->json(['message' => 'Đã thêm địa chỉ mới', 'address' => $address]);
+        $address = $request->user()->addresses()->create($validated);
+
+        return new AddressResource($address->load(['province', 'district', 'ward']));
     }
 
     // Cập nhật địa chỉ
@@ -45,22 +54,27 @@ class AddressController extends Controller
             return response()->json(['message' => 'Không có quyền'], 403);
         }
 
-        $data = $request->validate([
-            'receiver_name' => 'nullable|string|max:255',
-            'receiver_phone' => 'nullable|string|max:20',
-            'line1'         => 'nullable|string|max:255',
-            'city'           => 'nullable|string|max:255',
-            'province'       => 'nullable|string|max:255',
-            'zip'            => 'nullable|string|max:10',
-            'is_default'     => 'boolean',
+        $validated = $request->validate([
+            'receiver_name'   => 'nullable|string|max:255',
+            'receiver_phone'  => 'nullable|string|max:20',
+            'line1'           => 'nullable|string|max:255',
+            'province_id'     => 'nullable|exists:provinces,id',
+            'district_id'     => 'nullable|exists:districts,id',
+            'ward_id'         => 'nullable|exists:wards,id',
+            'province_code'   => 'nullable|string|max:10',
+            'district_code'   => 'nullable|string|max:10',
+            'ward_code'       => 'nullable|string|max:10',
+            'zip'             => 'nullable|string|max:20',
+            'is_default'      => 'boolean'
         ]);
 
-        if (!empty($data['is_default']) && $data['is_default']) {
-            Address::where('user_id', $request->user()->id)->update(['is_default' => false]);
+        if ($validated['is_default'] ?? false) {
+            $request->user()->addresses()->update(['is_default' => false]);
         }
 
-        $address->update($data);
-        return response()->json(['message' => 'Đã cập nhật địa chỉ', 'address' => $address]);
+        $address->update($validated);
+
+        return new AddressResource($address->load(['province', 'district', 'ward']));
     }
 
     // Xóa địa chỉ
@@ -71,6 +85,20 @@ class AddressController extends Controller
         }
 
         $address->delete();
+
         return response()->json(['message' => 'Đã xóa địa chỉ']);
+    }
+
+    // Đặt địa chỉ mặc định
+    public function setDefault(Request $request, Address $address)
+    {
+        if ($address->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Không có quyền'], 403);
+        }
+
+        $request->user()->addresses()->update(['is_default' => false]);
+        $address->update(['is_default' => true]);
+
+        return new AddressResource($address->load(['province','district','ward']));
     }
 }
