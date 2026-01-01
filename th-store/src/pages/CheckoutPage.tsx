@@ -11,7 +11,7 @@ import type { Province, District, Ward } from '../api/geo.api'
 
 
 export default function CheckoutPage() {
-  const { items, getTotalPrice, clearCart, reloadCart } = useCart()
+  const { items, reloadCart } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -47,12 +47,18 @@ export default function CheckoutPage() {
   const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
 
   // Xác định danh sách sản phẩm cần thanh toán (từ giỏ hàng hoặc mua ngay)
-  const checkoutItems = buyNowItem ? [buyNowItem] : items;
+  const selectedItemIds = location.state?.selectedItemIds;
+
+  const checkoutItems = buyNowItem
+    ? [buyNowItem]
+    : (selectedItemIds
+      ? items.filter(item => selectedItemIds.includes(Number(item.id)))
+      : items);
 
   // Tính tổng tiền
   const checkoutTotal = buyNowItem
     ? buyNowItem.price * buyNowItem.quantity
-    : getTotalPrice();
+    : checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // Load coupon từ localStorage
   useEffect(() => {
@@ -161,6 +167,11 @@ export default function CheckoutPage() {
       checkoutData.coupon_code = couponCode.trim();
     }
 
+    // Thêm cart_item_ids nếu có
+    if (!buyNowItem && selectedItemIds) {
+      checkoutData.cart_item_ids = selectedItemIds;
+    }
+
     setIsSubmitting(true)
     try {
       console.log('Sending checkout data:', checkoutData)
@@ -213,8 +224,7 @@ export default function CheckoutPage() {
       } else {
         // Success logic
         if (!buyNowItem) {
-          // Chỉ xóa giỏ hàng nếu là checkout thường
-          await clearCart()
+          // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
           await reloadCart()
         }
 
@@ -291,8 +301,7 @@ export default function CheckoutPage() {
             clearInterval(pollInterval);
             setIsCheckingPayment(false);
 
-            // Xóa giỏ hàng và coupon
-            await clearCart()
+            // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
             await reloadCart()
             localStorage.removeItem("applied_coupon");
             localStorage.removeItem("coupon_discount");

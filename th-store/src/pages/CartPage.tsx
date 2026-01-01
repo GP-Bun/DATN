@@ -5,13 +5,21 @@ import { applyCoupon, getAvailableCoupons, type Coupon } from "../api/coupon.api
 import { formatPrice } from "../utils/formatPrice";
 
 export default function CartPage() {
-  const { items, updateCartItem, removeCartItem, getTotalPrice, reloadCart } = useCart();
+  const { items, updateCartItem, removeCartItem } = useCart();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [discount, setDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState("");
+
+  // Tự động chọn tất cả sản phẩm khi vào giỏ hàng lần đầu
+  useEffect(() => {
+    if (items.length > 0 && selectedIds.length === 0) {
+      setSelectedIds(items.map(item => Number(item.id)));
+    }
+  }, [items]);
 
   // Load coupon từ localStorage khi component mount
   useEffect(() => {
@@ -27,14 +35,26 @@ export default function CartPage() {
     }
   }, []);
 
+  // Tính tổng tiền các sản phẩm được chọn
+  const getSelectedTotalPrice = () => {
+    return items
+      .filter(item => selectedIds.includes(Number(item.id)))
+      .reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
   // Load danh sách voucher có sẵn
   useEffect(() => {
     const loadAvailableCoupons = async () => {
       try {
         setLoadingCoupons(true);
-        const total = getTotalPrice();
+        const total = getSelectedTotalPrice();
         const data = await getAvailableCoupons(total);
         setAvailableCoupons(data.coupons || []);
+
+        // Kiểm tra nếu coupon đang áp dụng không còn hợp lệ thì xóa
+        if (appliedCoupon && total < (appliedCoupon.min_order_amount || 0)) {
+          handleRemoveCoupon();
+        }
       } catch (error) {
         console.error("Error loading coupons:", error);
       } finally {
@@ -47,7 +67,7 @@ export default function CartPage() {
     } else {
       setAvailableCoupons([]);
     }
-  }, [items]);
+  }, [items, selectedIds]);
 
   // Áp dụng voucher từ danh sách
   const handleSelectCoupon = async (coupon: Coupon) => {
@@ -61,7 +81,7 @@ export default function CartPage() {
     setCouponError("");
 
     try {
-      const total = getTotalPrice();
+      const total = getSelectedTotalPrice();
       const result = await applyCoupon(coupon.code, total);
 
       if (result.ok && result.coupon && result.discount !== undefined) {
@@ -96,8 +116,24 @@ export default function CartPage() {
 
   // Tính tổng sau khi giảm giá
   const getFinalPrice = () => {
-    return Math.max(0, getTotalPrice() - discount);
+    return Math.max(0, getSelectedTotalPrice() - discount);
   };
+
+  // Các hàm xử lý chọn sản phẩm
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === items.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(items.map(item => Number(item.id)));
+    }
+  };
+
   // Hàm xử lý cập nhật số lượng
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -163,8 +199,28 @@ export default function CartPage() {
         fontWeight: "700",
         color: "#1f2937"
       }}>
-        Giỏ hàng của bạn ({items.length} {items.length === 1 ? "sản phẩm" : "sản phẩm"})
+        Giỏ hàng của bạn ({items.length} sản phẩm)
       </h1>
+
+      <div style={{
+        background: "white",
+        borderRadius: "12px",
+        padding: "16px 24px",
+        marginBottom: "20px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        border: "1px solid #e5e7eb",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px"
+      }}>
+        <input
+          type="checkbox"
+          checked={selectedIds.length === items.length && items.length > 0}
+          onChange={handleSelectAll}
+          style={{ width: "20px", height: "20px", cursor: "pointer" }}
+        />
+        <span style={{ fontWeight: "600", color: "#374151" }}>Chọn tất cả ({items.length})</span>
+      </div>
 
       <div style={{
         display: "grid",
@@ -186,6 +242,7 @@ export default function CartPage() {
                 border: "1px solid #e5e7eb",
                 display: "flex",
                 gap: "20px",
+                alignItems: "center",
                 transition: "all 0.2s"
               }}
               onMouseEnter={(e) => {
@@ -197,6 +254,16 @@ export default function CartPage() {
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
+              {/* Checkbox chọn sản phẩm */}
+              <div style={{ flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(Number(item.id))}
+                  onChange={() => handleToggleSelect(Number(item.id))}
+                  style={{ width: "20px", height: "20px", cursor: "pointer" }}
+                />
+              </div>
+
               {/* Ảnh sản phẩm */}
               <div style={{ flexShrink: 0 }}>
                 <img
@@ -375,7 +442,7 @@ export default function CartPage() {
         </div>
 
         {/* Tóm tắt đơn hàng */}
-        
+
         <div style={{
           position: "sticky",
           top: "20px",
@@ -447,9 +514,9 @@ export default function CartPage() {
                 Đang tải voucher...
               </div>
             ) : availableCoupons.length === 0 ? (
-              <div style={{ 
-                padding: "12px", 
-                background: "#f3f4f6", 
+              <div style={{
+                padding: "12px",
+                background: "#f3f4f6",
                 borderRadius: "6px",
                 textAlign: "center",
                 color: "#6b7280",
@@ -458,8 +525,8 @@ export default function CartPage() {
                 Hiện không có voucher nào khả dụng
               </div>
             ) : (
-              <div style={{ 
-                maxHeight: "200px", 
+              <div style={{
+                maxHeight: "200px",
                 overflowY: "auto",
                 display: "flex",
                 flexDirection: "column",
@@ -468,7 +535,7 @@ export default function CartPage() {
                 {availableCoupons.map((coupon) => {
                   const isSelected = appliedCoupon?.id === coupon.id;
                   const isDisabled = !coupon.is_applicable;
-                  
+
                   return (
                     <button
                       key={coupon.id}
@@ -476,13 +543,13 @@ export default function CartPage() {
                       disabled={isDisabled || isApplyingCoupon}
                       style={{
                         padding: "12px",
-                        background: isSelected 
-                          ? "#d1fae5" 
-                          : isDisabled 
-                            ? "#f3f4f6" 
+                        background: isSelected
+                          ? "#d1fae5"
+                          : isDisabled
+                            ? "#f3f4f6"
                             : "white",
-                        border: isSelected 
-                          ? "2px solid #10b981" 
+                        border: isSelected
+                          ? "2px solid #10b981"
                           : "1px solid #e5e7eb",
                         borderRadius: "6px",
                         cursor: isDisabled ? "not-allowed" : "pointer",
@@ -505,16 +572,16 @@ export default function CartPage() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontWeight: "600", 
+                          <div style={{
+                            fontWeight: "600",
                             color: isSelected ? "#059669" : "#1f2937",
                             marginBottom: "4px",
                             fontSize: "14px"
                           }}>
                             {isSelected && "✓ "}{coupon.code}
                           </div>
-                          <div style={{ 
-                            fontSize: "12px", 
+                          <div style={{
+                            fontSize: "12px",
                             color: isDisabled ? "#9ca3af" : "#6b7280"
                           }}>
                             {coupon.description || (
@@ -556,11 +623,11 @@ export default function CartPage() {
             )}
           </div>
 
-          
+
           <div style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: "16px", marginBottom: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-              <span style={{ color: "#6b7280" }}>Tạm tính:</span>
-              <span style={{ fontWeight: "600" }}>{formatPrice(getTotalPrice())}</span>
+              <span style={{ color: "#6b7280" }}>Tạm tính ({selectedIds.length} sản phẩm):</span>
+              <span style={{ fontWeight: "600" }}>{formatPrice(getSelectedTotalPrice())}</span>
             </div>
             {discount > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -585,11 +652,12 @@ export default function CartPage() {
 
           <Link
             to="/thanh-toan"
+            state={{ selectedItemIds: selectedIds }}
             style={{
               display: "block",
               width: "100%",
               padding: "16px",
-              background: "#3b82f6",
+              background: selectedIds.length === 0 ? "#9ca3af" : "#3b82f6",
               color: "white",
               textDecoration: "none",
               borderRadius: "8px",
@@ -597,20 +665,25 @@ export default function CartPage() {
               fontWeight: "600",
               textAlign: "center",
               transition: "all 0.2s",
-              marginBottom: "12px"
+              marginBottom: "12px",
+              pointerEvents: selectedIds.length === 0 ? "none" : "auto"
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#2563eb";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.4)";
+              if (selectedIds.length > 0) {
+                e.currentTarget.style.background = "#2563eb";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.4)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#3b82f6";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
+              if (selectedIds.length > 0) {
+                e.currentTarget.style.background = "#3b82f6";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
             }}
           >
-            Thanh toán
+            Thanh toán {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}
           </Link>
 
           <Link

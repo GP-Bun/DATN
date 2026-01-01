@@ -12,6 +12,7 @@ export interface CheckoutPayload {
   ward_id?: number;
   payment_method?: string;
   coupon_code?: string;
+  cart_item_ids?: number[];
 }
 
 
