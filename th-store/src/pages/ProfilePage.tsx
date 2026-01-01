@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { vietnamProvinces } from '../data/vietnam.provinces'
-import { vietnamDistricts } from '../data/vietnam.districts'
 
 interface Address {
   id: number
@@ -16,47 +14,8 @@ interface Address {
   is_default: boolean
 }
 
-type OrderItem = {
-  id: number
-  product_id: number
-  product_name: string
-  quantity: number
-  price: number
-  product?: {
-    id: number
-    name: string
-    image?: string
-    thumbnail?: string
-    thumbnail_url?: string
-    images?: string[]
-  }
-  variant?: {
-    color?: string
-    size?: string
-  }
-}
-
-type Order = {
-  id: number
-  order_status: string
-  payment_status: string
-  final_amount: number
-  discount_amount: number
-  shipping_cost: number
-  created_at: string
-  items: OrderItem[]
-  address?: {
-    receiver_name: string
-    receiver_phone: string
-    line1: string
-    city: string
-    province: string
-  }
-}
-
 const userApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" })
 
-// Interceptor để thêm token
 userApi.interceptors.request.use((config) => {
   const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -68,17 +27,15 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isEditingAddress, setIsEditingAddress] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  
+
   const [profileData, setProfileData] = useState({
-    name: (user as any).name || '',
-    email: (user as any).email || '',
-    phone: (user as any).phone || '',
+    name: (user as any)?.name || '',
+    email: (user as any)?.email || '',
+    phone: (user as any)?.phone || '',
   })
 
   const [addressData, setAddressData] = useState({
@@ -96,14 +53,8 @@ export default function ProfilePage() {
       navigate('/dang-nhap')
       return
     }
-    setProfileData({
-      name: (user as any).name || '',
-      email: (user as any).email || '',
-      phone: (user as any).phone || '',
-    })
     loadAddresses()
     loadUserProfile()
-    loadOrders()
   }, [user])
 
   const loadUserProfile = async () => {
@@ -111,12 +62,12 @@ export default function ProfilePage() {
       const res = await userApi.get('/user-profile')
       const userData = res.data.user
       setProfileData({
-        name: (userData as any).name || '',
-        email: (userData as any).email || '',
-        phone: (userData as any).phone || '',
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
       })
-      if ((userData as any).avatar_url) {
-        setAvatarPreview((userData as any) .avatar_url)
+      if (userData.avatar_url) {
+        setAvatarPreview(userData.avatar_url)
       }
     } catch (err) {
       console.error('Lỗi tải thông tin người dùng:', err)
@@ -129,15 +80,6 @@ export default function ProfilePage() {
       setAddresses(res.data)
     } catch (err) {
       console.error('Lỗi tải địa chỉ:', err)
-    }
-  }
-
-  const loadOrders = async () => {
-    try {
-      const res = await userApi.get('/orders')
-      setOrders(res.data)
-    } catch (err) {
-      console.error('Lỗi tải đơn hàng:', err)
     }
   }
 
@@ -163,7 +105,7 @@ export default function ProfilePage() {
       const formData = new FormData()
       formData.append('name', profileData.name)
       if (profileData.phone) formData.append('phone', profileData.phone)
-      
+
       const avatarInput = document.getElementById('avatar-input') as HTMLInputElement
       if (avatarInput?.files?.[0]) {
         formData.append('avatar', avatarInput.files[0])
@@ -172,11 +114,11 @@ export default function ProfilePage() {
       await userApi.post('/user-profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      
+
       alert('Cập nhật thông tin thành công!')
       setIsEditingProfile(false)
       await loadUserProfile()
-      window.location.reload() // Reload để cập nhật user trong context
+      window.location.reload()
     } catch (err: any) {
       console.error(err)
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin')
@@ -249,60 +191,11 @@ export default function ProfilePage() {
     return `http://127.0.0.1:8000/storage/${image}`;
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getStatusText = (status: string) => {
-    const statusMap: Record<string, string> = {
-      pending: 'Chờ xử lý',
-      processing: 'Đang xử lý',
-      shipped: 'Đang giao hàng',
-      delivered: 'Đã giao hàng',
-      cancelled: 'Đã hủy'
-    }
-    return statusMap[status] || status
-  }
-
-  const getStatusColor = (status: string) => {
-    const colorMap: Record<string, string> = {
-      pending: '#f59e0b',
-      processing: '#3b82f6',
-      shipped: '#8b5cf6',
-      delivered: '#10b981',
-      cancelled: '#ef4444'
-    }
-    return colorMap[status] || '#6b7280'
-  }
-
-  const getPaymentStatusText = (status: string) => {
-    const statusMap: Record<string, string> = {
-      unpaid: 'Chưa thanh toán',
-      paid: 'Đã thanh toán',
-      refunded: 'Đã hoàn tiền'
-    }
-    return statusMap[status] || status
-  }
-
-  if (!user) {
-    return null
-  }
+  if (!user) return null;
 
   return (
     <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{
-        marginBottom: "32px",
-        fontSize: "32px",
-        fontWeight: "700",
-        color: "#1f2937"
-      }}>
+      <h1 style={{ marginBottom: "32px", fontSize: "32px", fontWeight: "700", color: "#1f2937" }}>
         Thông tin tài khoản
       </h1>
 
@@ -323,12 +216,7 @@ export default function ProfilePage() {
           borderBottom: "2px solid #e5e7eb",
           paddingBottom: "16px"
         }}>
-          <h2 style={{
-            margin: 0,
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "#1f2937"
-          }}>
+          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#1f2937" }}>
             Thông tin cá nhân
           </h2>
           {!isEditingProfile && (
@@ -363,73 +251,21 @@ export default function ProfilePage() {
               <img
                 src={getImageUrl(avatarPreview || (user as any).avatar_url)}
                 alt="Avatar"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover"
-                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ marginBottom: "16px" }}>
-                <label style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#6b7280",
-                  marginBottom: "4px",
-                  textTransform: "uppercase"
-                }}>
-                  Họ và tên
-                </label>
-                <p style={{
-                  margin: 0,
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "#1f2937"
-                }}>
-                  {profileData.name || 'Chưa cập nhật'}
-                </p>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px", textTransform: "uppercase" }}>Họ và tên</label>
+                <p style={{ margin: 0, fontSize: "18px", fontWeight: "600", color: "#1f2937" }}>{profileData.name || 'Chưa cập nhật'}</p>
               </div>
               <div style={{ marginBottom: "16px" }}>
-                <label style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#6b7280",
-                  marginBottom: "4px",
-                  textTransform: "uppercase"
-                }}>
-                  Email
-                </label>
-                <p style={{
-                  margin: 0,
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "#1f2937"
-                }}>
-                  {profileData.email}
-                </p>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px", textTransform: "uppercase" }}>Email</label>
+                <p style={{ margin: 0, fontSize: "18px", fontWeight: "600", color: "#1f2937" }}>{profileData.email}</p>
               </div>
               <div>
-                <label style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#6b7280",
-                  marginBottom: "4px",
-                  textTransform: "uppercase"
-                }}>
-                  Số điện thoại
-                </label>
-                <p style={{
-                  margin: 0,
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "#1f2937"
-                }}>
-                  {profileData.phone || 'Chưa cập nhật'}
-                </p>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px", textTransform: "uppercase" }}>Số điện thoại</label>
+                <p style={{ margin: 0, fontSize: "18px", fontWeight: "600", color: "#1f2937" }}>{profileData.phone || 'Chưa cập nhật'}</p>
               </div>
             </div>
           </div>
@@ -437,531 +273,86 @@ export default function ProfilePage() {
           <form onSubmit={handleUpdateProfile} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", gap: "32px", alignItems: "flex-start" }}>
               <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                  Ảnh đại diện
-                </label>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Ảnh đại diện</label>
                 <div style={{
-                  width: "120px",
-                  height: "120px",
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  border: "3px solid #e5e7eb",
-                  position: "relative",
-                  cursor: "pointer"
+                  width: "120px", height: "120px", borderRadius: "50%", overflow: "hidden", border: "3px solid #e5e7eb", position: "relative", cursor: "pointer"
                 }}>
                   <img
                     src={getImageUrl(avatarPreview || (user as any).avatar_url)}
                     alt="Avatar"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover"
-                    }}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
-                  <input
-                    id="avatar-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: "100%",
-                      opacity: 0,
-                      cursor: "pointer"
-                    }}
+                  <input id="avatar-input" type="file" accept="image/*" onChange={handleAvatarChange}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
                   />
                 </div>
-                <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-                  Nhấp để thay đổi (tối đa 2MB)
-                </p>
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
-                <div>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#374151"
-                  }}>
-                    Họ và tên *
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "8px",
-                      fontSize: "16px",
-                      boxSizing: "border-box"
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#374151"
-                  }}>
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={profileData.email}
-                    disabled
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "8px",
-                      fontSize: "16px",
-                      background: "#f3f4f6",
-                      color: "#6b7280",
-                      boxSizing: "border-box"
-                    }}
-                  />
-                  <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-                    Email không thể thay đổi
-                  </p>
-                </div>
-                <div>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#374151"
-                  }}>
-                    Số điện thoại
-                  </label>
-                  <input
-                    type="tel"
-                    value={profileData.phone}
-                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "8px",
-                      fontSize: "16px",
-                      boxSizing: "border-box"
-                    }}
-                  />
-                </div>
+                <input type="text" placeholder="Họ và tên" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} required
+                  style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
+                />
+                <input type="tel" placeholder="Số điện thoại" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                  style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
+                />
               </div>
             </div>
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingProfile(false)
-                  setAvatarPreview(null)
-                  loadUserProfile()
-                }}
-                style={{
-                  padding: "12px 24px",
-                  background: "white",
-                  color: "#374151",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: "12px 24px",
-                  background: loading ? "#9ca3af" : "#3b82f6",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              >
-                {loading ? "Đang lưu..." : "Lưu thay đổi"}
-              </button>
+              <button type="button" onClick={() => setIsEditingProfile(false)} style={{ padding: "12px 24px", background: "white", border: "1px solid #d1d5db", borderRadius: "8px" }}>Hủy</button>
+              <button type="submit" disabled={loading} style={{ padding: "12px 24px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}>Lưu thay đổi</button>
             </div>
           </form>
         )}
       </div>
 
-      {/* ĐỊA CHỈ */}
+      {/* ĐỊA CHỈ CỦA TÔI */}
       <div style={{
-        background: "white",
-        borderRadius: "12px",
-        padding: "32px",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-        border: "1px solid #e5e7eb"
+        background: "white", borderRadius: "12px", padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #e5e7eb", marginBottom: "32px"
       }}>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-          borderBottom: "2px solid #e5e7eb",
-          paddingBottom: "16px"
-        }}>
-          <h2 style={{
-            margin: 0,
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "#1f2937"
-          }}>
-            Địa chỉ giao hàng
-          </h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "2px solid #e5e7eb", paddingBottom: "16px" }}>
+          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#1f2937" }}>Địa chỉ của tôi</h2>
           {!isEditingAddress && (
-            <button
-              onClick={() => {
-                setIsEditingAddress(true)
-                setEditingAddressId(null)
-                setAddressData({
-                  receiver_name: '',
-                  receiver_phone: '',
-                  line1: '',
-                  city: '',
-                  province: '',
-                  zip: '',
-                  is_default: false,
-                })
-              }}
-              style={{
-                padding: "8px 16px",
-                background: "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "600"
-              }}
+            <button onClick={() => { setEditingAddressId(null); setAddressData({ receiver_name: '', receiver_phone: '', line1: '', city: '', province: '', zip: '', is_default: false }); setIsEditingAddress(true); }}
+              style={{ padding: "8px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
             >
-              + Thêm địa chỉ
+              Thêm địa chỉ mới
             </button>
           )}
         </div>
 
         {isEditingAddress ? (
-          <form onSubmit={handleSaveAddress} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div>
-              <label style={{
-                display: "block",
-                marginBottom: "8px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#374151"
-              }}>
-                Tên người nhận *
-              </label>
-              <input
-                type="text"
-                value={addressData.receiver_name}
-                onChange={(e) => setAddressData({ ...addressData, receiver_name: e.target.value })}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-            <div>
-              <label style={{
-                display: "block",
-                marginBottom: "8px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#374151"
-              }}>
-                Số điện thoại *
-              </label>
-              <input
-                type="tel"
-                value={addressData.receiver_phone}
-                onChange={(e) => setAddressData({ ...addressData, receiver_phone: e.target.value })}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-            <div>
-              <label style={{
-                display: "block",
-                marginBottom: "8px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#374151"
-              }}>
-                Địa chỉ cụ thể *
-              </label>
-              <input
-                type="text"
-                value={addressData.line1}
-                onChange={(e) => setAddressData({ ...addressData, line1: e.target.value })}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                  Quận/Huyện *
-                </label>
-                <select
-                  value={addressData.city}
-                  onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    background: "white",
-                    cursor: "pointer",
-                    boxSizing: "border-box"
-                  }}
-                >
-                  <option value="">-- Chọn quận / huyện --</option>
-                  {vietnamDistricts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                  Tỉnh/Thành phố *
-                </label>
-                <select
-                  value={addressData.province}
-                  onChange={(e) => setAddressData({ ...addressData, province: e.target.value })}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    background: "white",
-                    cursor: "pointer",
-                    boxSizing: "border-box"
-                  }}
-                >
-                  <option value="">-- Chọn tỉnh / thành phố --</option>
-                  {vietnamProvinces.map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label style={{
-                display: "block",
-                marginBottom: "8px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#374151"
-              }}>
-                Mã bưu điện
-              </label>
-              <input
-                type="text"
-                value={addressData.zip}
-                onChange={(e) => setAddressData({ ...addressData, zip: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <input
-                type="checkbox"
-                id="is_default"
-                checked={addressData.is_default}
-                onChange={(e) => setAddressData({ ...addressData, is_default: e.target.checked })}
-                style={{ width: "18px", height: "18px", cursor: "pointer" }}
-              />
-              <label htmlFor="is_default" style={{ fontSize: "14px", color: "#374151", cursor: "pointer" }}>
-                Đặt làm địa chỉ mặc định
-              </label>
-            </div>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingAddress(false)
-                  setEditingAddressId(null)
-                  setAddressData({
-                    receiver_name: '',
-                    receiver_phone: '',
-                    line1: '',
-                    city: '',
-                    province: '',
-                    zip: '',
-                    is_default: false,
-                  })
-                }}
-                style={{
-                  padding: "12px 24px",
-                  background: "white",
-                  color: "#374151",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: "12px 24px",
-                  background: loading ? "#9ca3af" : "#3b82f6",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              >
-                {loading ? "Đang lưu..." : editingAddressId ? "Cập nhật" : "Thêm địa chỉ"}
-              </button>
+          <form onSubmit={handleSaveAddress} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <input type="text" placeholder="Tên người nhận" value={addressData.receiver_name} onChange={(e) => setAddressData({ ...addressData, receiver_name: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+            <input type="tel" placeholder="Số điện thoại" value={addressData.receiver_phone} onChange={(e) => setAddressData({ ...addressData, receiver_phone: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+            <input type="text" placeholder="Địa chỉ chi tiết" value={addressData.line1} onChange={(e) => setAddressData({ ...addressData, line1: e.target.value })} required style={{ gridColumn: "span 2", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+            <input type="text" placeholder="Quận/Huyện" value={addressData.city} onChange={(e) => setAddressData({ ...addressData, city: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+            <input type="text" placeholder="Tỉnh/Thành phố" value={addressData.province} onChange={(e) => setAddressData({ ...addressData, province: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+            <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: "8px" }}>
+              <input type="checkbox" checked={addressData.is_default} onChange={(e) => setAddressData({ ...addressData, is_default: e.target.checked })} /> Đặt làm địa chỉ mặc định
+            </label>
+            <div style={{ gridColumn: "span 2", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setIsEditingAddress(false)} style={{ padding: "12px 24px", background: "white", border: "1px solid #d1d5db", borderRadius: "8px" }}>Hủy</button>
+              <button type="submit" style={{ padding: "12px 24px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}>Lưu địa chỉ</button>
             </div>
           </form>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {addresses.length === 0 ? (
-              <p style={{ color: "#6b7280", textAlign: "center", padding: "40px" }}>
-                Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ mới!
-              </p>
+              <p style={{ color: "#6b7280", textAlign: "center" }}>Bạn chưa có địa chỉ nào.</p>
             ) : (
-              addresses.map((address) => (
-                <div
-                  key={address.id}
-                  style={{
-                    padding: "20px",
-                    border: address.is_default ? "2px solid #3b82f6" : "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    background: address.is_default ? "#eff6ff" : "white"
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ flex: 1 }}>
-                      {address.is_default && (
-                        <span style={{
-                          display: "inline-block",
-                          padding: "4px 12px",
-                          background: "#3b82f6",
-                          color: "white",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          marginBottom: "8px"
-                        }}>
-                          Mặc định
-                        </span>
-                      )}
-                      <p style={{ margin: "8px 0", fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>
-                        {address.receiver_name}
-                      </p>
-                      <p style={{ margin: "4px 0", fontSize: "14px", color: "#6b7280" }}>
-                        {address.receiver_phone}
-                      </p>
-                      <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
-                        {address.line1}, {address.city}, {address.province}
-                        {address.zip && ` - ${address.zip}`}
-                      </p>
+              addresses.map(addr => (
+                <div key={addr.id} style={{ padding: "20px", border: "1px solid #e5e7eb", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+                      <span style={{ fontWeight: "700", fontSize: "16px" }}>{addr.receiver_name}</span>
+                      <span style={{ color: "#6b7280", fontSize: "14px" }}>| {addr.receiver_phone}</span>
+                      {addr.is_default && <span style={{ padding: "2px 8px", background: "#fef2f2", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", fontSize: "12px" }}>Mặc định</span>}
                     </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        onClick={() => handleEditAddress(address)}
-                        style={{
-                          padding: "8px 16px",
-                          background: "white",
-                          color: "#3b82f6",
-                          border: "1px solid #3b82f6",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "600"
-                        }}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAddress(address.id)}
-                        style={{
-                          padding: "8px 16px",
-                          background: "white",
-                          color: "#ef4444",
-                          border: "1px solid #ef4444",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "600"
-                        }}
-                      >
-                        Xóa
-                      </button>
-                    </div>
+                    <p style={{ margin: 0, color: "#4b5563" }}>{addr.line1}</p>
+                    <p style={{ margin: 0, color: "#4b5563" }}>{addr.city}, {addr.province}</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <button onClick={() => handleEditAddress(addr)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer" }}>Sửa</button>
+                    {!addr.is_default && <button onClick={() => handleDeleteAddress(addr.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>Xóa</button>}
                   </div>
                 </div>
               ))
@@ -970,269 +361,9 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* ĐƠN HÀNG ĐÃ ĐẶT */}
-      <div style={{
-        background: "white",
-        borderRadius: "12px",
-        padding: "32px",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-        border: "1px solid #e5e7eb",
-        marginBottom: "32px"
-      }}>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-          borderBottom: "2px solid #e5e7eb",
-          paddingBottom: "16px"
-        }}>
-          <h2 style={{
-            margin: 0,
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "#1f2937"
-          }}>
-            Đơn hàng đã đặt
-          </h2>
-        </div>
-
-        {orders.length === 0 ? (
-          <p style={{ color: "#6b7280", textAlign: "center", padding: "40px" }}>
-            Bạn chưa có đơn hàng nào.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  overflow: "hidden"
-                }}
-              >
-                <div
-                  style={{
-                    padding: "20px",
-                    background: "#f9fafb",
-                    cursor: "pointer",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}
-                  onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", gap: "16px", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: "#1f2937"
-                      }}>
-                        Đơn hàng #{order.id}
-                      </span>
-                      <span style={{
-                        padding: "4px 12px",
-                        background: getStatusColor(order.order_status),
-                        color: "white",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        fontWeight: "600"
-                      }}>
-                        {getStatusText(order.order_status)}
-                      </span>
-                      <span style={{
-                        padding: "4px 12px",
-                        background: order.payment_status === 'paid' ? "#10b981" : "#f59e0b",
-                        color: "white",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        fontWeight: "600"
-                      }}>
-                        {getPaymentStatusText(order.payment_status)}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", gap: "24px", fontSize: "14px", color: "#6b7280" }}>
-                      <span>Ngày đặt: {formatDate(order.created_at)}</span>
-                      <span style={{ fontWeight: "600", color: "#059669", fontSize: "16px" }}>
-                        Tổng tiền: {new Intl.NumberFormat('vi-VN', {
-                          style: 'decimal',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(order.final_amount)}đ
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: "20px",
-                    color: "#6b7280",
-                    transform: expandedOrderId === order.id ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s"
-                  }}>
-                    ▼
-                  </div>
-                </div>
-
-                {expandedOrderId === order.id && (
-                  <div style={{ padding: "20px", background: "white" }}>
-                    {order.address && (
-                      <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #e5e7eb" }}>
-                        <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#1f2937" }}>
-                          Địa chỉ giao hàng
-                        </h3>
-                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
-                          <strong>Người nhận:</strong> {order.address.receiver_name}
-                        </p>
-                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
-                          <strong>Điện thoại:</strong> {order.address.receiver_phone}
-                        </p>
-                        <p style={{ margin: "4px 0", fontSize: "14px", color: "#374151" }}>
-                          <strong>Địa chỉ:</strong> {order.address.line1}, {order.address.city}, {order.address.province}
-                        </p>
-                      </div>
-                    )}
-
-                    <div style={{ marginBottom: "20px" }}>
-                      <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#1f2937" }}>
-                        Sản phẩm
-                      </h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                        {order.items.map((item) => {
-                          const imageUrl = item.product?.image || 
-                                          item.product?.thumbnail_url || 
-                                          (item.product?.thumbnail ? getImageUrl(item.product.thumbnail) : null) ||
-                                          (item.product?.images && item.product.images.length > 0 ? getImageUrl(item.product.images[0]) : null);
-                          
-                          return (
-                          <div
-                            key={item.id}
-                            style={{
-                              display: "flex",
-                              gap: "16px",
-                              padding: "12px",
-                              background: "#f9fafb",
-                              borderRadius: "8px",
-                              border: "1px solid #e5e7eb"
-                            }}
-                          >
-                            <img 
-                              src={imageUrl || "https://via.placeholder.com/100?text=No+Image"} 
-                              alt={item.product_name} 
-                              onError={(e) => {
-                                e.currentTarget.src = "https://via.placeholder.com/100?text=No+Image";
-                              }}
-                              style={{ 
-                                width: '80px', 
-                                height: '80px', 
-                                objectFit: 'cover', 
-                                borderRadius: '8px',
-                                border: '1px solid #e5e7eb',
-                                flexShrink: 0
-                              }} 
-                            />
-                            <div style={{ flex: 1 }}>
-                              <p style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>
-                                {item.product_name}
-                              </p>
-                              {item.variant && (
-                                <p style={{ margin: "4px 0", fontSize: "14px", color: "#6b7280" }}>
-                                  {item.variant.color && `Màu: ${item.variant.color}`}
-                                  {item.variant.color && item.variant.size && ' • '}
-                                  {item.variant.size && `Size: ${item.variant.size}`}
-                                </p>
-                              )}
-                              <p style={{ margin: "4px 0", fontSize: "14px", color: "#6b7280" }}>
-                                Số lượng: {item.quantity}
-                              </p>
-                              <p style={{ margin: "8px 0 0 0", fontSize: "16px", fontWeight: "600", color: "#059669" }}>
-                                {new Intl.NumberFormat('vi-VN', {
-                                  style: 'decimal',
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0,
-                                }).format(item.price)}đ × {item.quantity} = {new Intl.NumberFormat('vi-VN', {
-                                  style: 'decimal',
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0,
-                                }).format(item.price * item.quantity)}đ
-                              </p>
-                            </div>
-                          </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      paddingTop: "16px",
-                      borderTop: "2px solid #e5e7eb",
-                      textAlign: "right"
-                    }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-                        <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
-                          Tạm tính: {new Intl.NumberFormat('vi-VN', {
-                            style: 'decimal',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(order.items.reduce((sum, item) => sum + item.price * item.quantity, 0))}đ
-                        </p>
-                        {order.discount_amount > 0 && (
-                          <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
-                            Giảm giá: -{new Intl.NumberFormat('vi-VN', {
-                              style: 'decimal',
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(order.discount_amount)}đ
-                          </p>
-                        )}
-                        <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
-                          Phí vận chuyển: {new Intl.NumberFormat('vi-VN', {
-                            style: 'decimal',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(order.shipping_cost)}đ
-                        </p>
-                        <p style={{
-                          margin: "8px 0 0 0",
-                          fontSize: "20px",
-                          fontWeight: "700",
-                          color: "#059669"
-                        }}>
-                          Tổng cộng: {new Intl.NumberFormat('vi-VN', {
-                            style: 'decimal',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(order.final_amount)}đ
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* NÚT ĐĂNG XUẤT */}
-      <div style={{ marginTop: "32px", textAlign: "center" }}>
-        <button
-          onClick={async () => {
-            if (window.confirm('Bạn có chắc chắn muốn đăng xuất không?')) {
-              await logoutUser()
-              navigate('/')
-            }
-          }}
-          style={{
-            padding: "12px 24px",
-            background: "#ef4444",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "16px",
-            fontWeight: "600"
-          }}
+      <div style={{ textAlign: "center" }}>
+        <button onClick={async () => { if (window.confirm('Bạn có chắc muốn đăng xuất?')) { await logoutUser(); navigate('/'); } }}
+          style={{ padding: "12px 24px", background: "#ef4444", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
         >
           Đăng xuất
         </button>
@@ -1240,4 +371,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-

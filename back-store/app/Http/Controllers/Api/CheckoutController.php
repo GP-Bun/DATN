@@ -24,8 +24,11 @@ class CheckoutController extends Controller
             'full_name'    => 'required_without:address_id|string|max:255',
             'phone'        => 'required_without:address_id|string|max:20',
             'address'      => 'required_without:address_id|string|max:255',
-            'city'         => 'required_without:address_id|string|max:255',
-            'province'     => 'nullable|string|max:255',
+            'province_id'  => 'required_without:address_id|exists:provinces,id',
+            'district_id'  => 'required_without:address_id|exists:districts,id',
+            'ward_id'      => 'required_without:address_id|exists:wards,id',
+            'city'         => 'nullable|string', // Keep for backward compatibility if needed, but not used in DB
+            'province'     => 'nullable|string',
             'payment_method' => 'required|string|in:cod,bank_transfer',
             'coupon_code'  => 'nullable|string',
         ]);
@@ -58,10 +61,12 @@ class CheckoutController extends Controller
                     'receiver_name'  => $request->full_name,
                     'receiver_phone' => $request->phone,
                     'line1'          => $request->address,
-                    'city'           => $request->city,
-                    'province'       => $request->province ? $request->province : $request->city,
+                    'province_id'    => $request->province_id,
+                    'district_id'    => $request->district_id,
+                    'ward_id'        => $request->ward_id,
                     'is_default'     => false,
                 ])->id;
+
             } catch (\Exception $e) {
                 throw new \Exception("Lỗi tạo địa chỉ: " . $e->getMessage());
             }

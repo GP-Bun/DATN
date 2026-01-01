@@ -24,18 +24,20 @@ class HomeController extends Controller
 
         // Lấy 8 sản phẩm nổi bật (is_featured = 1), nếu không có thì lấy sản phẩm mới nhất
         $featuredProducts = Product::where('is_featured', 1)
-            ->where('status', 1) // Chỉ lấy sản phẩm còn hàng
+            ->whereIn('status', [1, 2]) // Lấy cả sản phẩm còn hàng và hết hàng
+            ->with(['variants'])
             ->orderBy('created_at', 'desc')
             ->take(8)
-            ->select('id', 'name', 'price', 'thumbnail')
+            ->select('id', 'name', 'price', 'thumbnail', 'stock')
             ->get();
         
         // Nếu không có sản phẩm nổi bật, lấy 8 sản phẩm mới nhất
         if ($featuredProducts->isEmpty()) {
-            $featuredProducts = Product::where('status', 1)
+            $featuredProducts = Product::whereIn('status', [1, 2])
+                ->with(['variants'])
                 ->orderBy('created_at', 'desc')
                 ->take(8)
-                ->select('id', 'name', 'price', 'thumbnail')
+                ->select('id', 'name', 'price', 'thumbnail', 'stock')
                 ->get();
         }
         

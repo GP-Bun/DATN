@@ -19,7 +19,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $orders = Order::where('user_id', $request->user()->id)
-            ->with(['items.product', 'items.variant', 'address'])
+            ->with(['items.product', 'items.variant', 'address', 'coupon'])
             ->latest()
             ->get();
 
@@ -47,7 +47,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Không có quyền truy cập'], 403);
         }
 
-        $order = $order->load(['items.product', 'items.variant']);
+        $order = $order->load(['items.product', 'items.variant', 'address', 'coupon']);
 
         $order->items->each(function ($item) {
             if ($item->product) {

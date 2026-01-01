@@ -3,7 +3,7 @@ import { useAuth } from '../store/AuthContext'
 import { useCart } from '../store/CartContext'
 
 export default function AppLayout() {
-  const { user } = useAuth()
+  const { user, logoutUser } = useAuth()
   const { getTotalItems } = useCart()
 
   return (
@@ -36,11 +36,28 @@ export default function AppLayout() {
             <span>Thanh toán</span>
           </NavLink>
           {user ? (
-            <NavLink to="/tai-khoan" className="nav-link">
-              <span className="nav-icon">👤</span>
-              <span>Tài khoản ({user.name})</span>
-            </NavLink>
+            <div className="nav-dropdown">
+              <NavLink to="/tai-khoan" className="nav-link">
+                <span className="nav-icon">👤</span>
+                <span>Tài khoản ({user.name})</span>
+              </NavLink>
+              <div className="dropdown-menu">
+                <Link to="/tai-khoan" className="dropdown-item">
+                  <span className="dropdown-icon">👤</span>
+                  Thông tin tài khoản
+                </Link>
+                <Link to="/don-hang" className="dropdown-item">
+                  <span className="dropdown-icon">📦</span>
+                  Đơn hàng của tôi
+                </Link>
+                <button onClick={logoutUser} className="dropdown-item logout-btn">
+                  <span className="dropdown-icon">🚪</span>
+                  Đăng xuất
+                </button>
+              </div>
+            </div>
           ) : (
+
             <>
               <NavLink to="/dang-nhap" className="nav-link">
                 <span className="nav-icon">🔐</span>
