@@ -14,7 +14,7 @@ class ProductController extends Controller
     // 🟦 Lấy danh sách sản phẩm
     public function index(Request $request)
     {
-        $products = Product::with(['category'])
+        $products = Product::with(['category', 'variants'])
             ->visible()
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -101,6 +101,7 @@ class ProductController extends Controller
             'slug' => $product->slug,
             'description' => $product->description,
             'price' => $product->price,
+            'stock' => $product->stock,
 
             // Ảnh đại diện - trả về cả đường dẫn gốc và URL đầy đủ
             'thumbnail' => $thumbnailUrl,
