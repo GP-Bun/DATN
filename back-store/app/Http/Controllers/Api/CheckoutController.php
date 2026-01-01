@@ -31,6 +31,8 @@ class CheckoutController extends Controller
             'province'     => 'nullable|string',
             'payment_method' => 'required|string|in:cod,bank_transfer',
             'coupon_code'  => 'nullable|string',
+            'cart_item_ids' => 'nullable|array',
+            'cart_item_ids.*' => 'integer|exists:cart_items,id',
         ]);
 
         $cart = Cart::where('user_id', $user->id)
@@ -41,12 +43,17 @@ class CheckoutController extends Controller
             return response()->json(['message' => 'Giỏ hàng không tồn tại'], 400);
         }
 
-        if ($cart->items->isEmpty()) {
-            return response()->json(['message' => 'Giỏ hàng trống'], 400);
+        $itemsToProcess = $cart->items;
+        if ($request->has('cart_item_ids') && !empty($request->cart_item_ids)) {
+            $itemsToProcess = $cart->items->whereIn('id', $request->cart_item_ids);
+        }
+
+        if ($itemsToProcess->isEmpty()) {
+            return response()->json(['message' => 'Giỏ hàng trống hoặc không có sản phẩm được chọn'], 400);
         }
 
         // Kiểm tra tất cả items có product không
-        foreach ($cart->items as $item) {
+        foreach ($itemsToProcess as $item) {
             if (!$item->product) {
                 return response()->json(['message' => "Sản phẩm trong giỏ hàng không tồn tại"], 400);
             }
@@ -85,7 +92,7 @@ class CheckoutController extends Controller
                 'final_amount'   => 0,
             ]);
 
-            foreach ($cart->items as $cartItem) {
+            foreach ($itemsToProcess as $cartItem) {
                 try {
                     $product = $cartItem->product;
                     if (!$product) {
@@ -205,8 +212,12 @@ class CheckoutController extends Controller
                 'final_amount'    => $finalAmount,
             ]);
 
-            // Xóa giỏ hàng
-            $cart->items()->delete();
+            // Xóa các sản phẩm đã chọn khỏi giỏ hàng
+            if ($request->has('cart_item_ids') && !empty($request->cart_item_ids)) {
+                $cart->items()->whereIn('id', $request->cart_item_ids)->delete();
+            } else {
+                $cart->items()->delete();
+            }
 
             DB::commit();
 
