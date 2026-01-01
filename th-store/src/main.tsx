@@ -10,16 +10,17 @@ import AppLayout from './ui/AppLayout';
 import AdminLayout from './admin/AdminLayout';
 
 // Pages User
-import { 
-  HomePage, 
-  ProductsPage, 
-  ProductDetailPage, 
-  CartPage, 
+import {
+  HomePage,
+  ProductsPage,
+  ProductDetailPage,
+  CartPage,
   CheckoutPage,
   OrderSuccessPage,
-  LoginPage, 
+  LoginPage,
   RegisterPage,
-  ProfilePage
+  ProfilePage,
+  OrdersPage
 } from './pages';
 import TestApiPage from './pages/TestApi';
 
@@ -53,6 +54,7 @@ const routerConfig = [
       { path: 'dang-nhap', element: <LoginPage /> },
       { path: 'dang-ky', element: <RegisterPage /> },
       { path: 'tai-khoan', element: <ProfilePage /> },
+      { path: 'don-hang', element: <OrdersPage /> },
       { path: 'test-api', element: <TestApiPage /> },
     ],
   },
@@ -65,13 +67,13 @@ const routerConfig = [
         <AdminLayout />
       </AdminRoute>
     ),
-      children: [
-        { path: 'dashboard', element: <Dashboard /> }, // /admin/dashboard
-        { path: 'products', element: <AdminProducts /> },
-        { path: 'orders', element: <AdminOrders /> },
-        { path: 'users', element: <AdminUsers /> },
-        { path: 'reviews', element: <AdminReviews /> },
-      ],
+    children: [
+      { path: 'dashboard', element: <Dashboard /> }, // /admin/dashboard
+      { path: 'products', element: <AdminProducts /> },
+      { path: 'orders', element: <AdminOrders /> },
+      { path: 'users', element: <AdminUsers /> },
+      { path: 'reviews', element: <AdminReviews /> },
+    ],
   },
 
   // Admin auth routes (login/register)
