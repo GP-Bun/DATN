@@ -137,7 +137,7 @@ export default function ProductDetailPage() {
     } catch (err: any) {
       console.error("Lỗi thêm giỏ hàng:", err);
       const errorMessage = err?.response?.data?.message || "Lỗi khi thêm vào giỏ!";
-      
+
       // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
       if (errorMessage.includes("Unauthenticated") || err?.response?.status === 401) {
         const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn. Bạn có muốn đăng nhập lại không?");
@@ -152,10 +152,58 @@ export default function ProductDetailPage() {
     }
   };
 
+  const handleBuyNow = async () => {
+    // Kiểm tra user đã đăng nhập chưa
+    if (!user) {
+
+
+      const confirmLogin = confirm("Bạn cần đăng nhập để mua hàng. Bạn có muốn đăng nhập ngay không?");
+      if (confirmLogin) {
+        navigate("/dang-nhap");
+      }
+      return;
+    }
+
+    if (!selectedVariant) {
+      alert("Vui lòng chọn màu và kích thước hợp lệ!");
+      return;
+    }
+    if (!product) {
+      alert("Không tìm thấy sản phẩm!");
+      return;
+    }
+    if (quantity > (selectedVariant.stock ?? 0)) {
+      alert("Số lượng vượt quá tồn kho!");
+      return;
+    }
+
+    try {
+      // Tạo item tạm thời để gửi sang trang checkout
+      const buyNowItem = {
+        product_id: product.id,
+        variant_id: selectedVariant.id,
+        quantity: quantity,
+        price: selectedVariant.sale_price ?? product.price,
+        name: product.name,
+        image: product.thumbnail,
+        color: product.colors?.find((c: any) => c.id === selectedColor)?.name,
+        size: product.sizes?.find((s: any) => s.id === selectedSize)?.value ?? product.sizes?.find((s: any) => s.id === selectedSize)?.name
+      };
+
+      console.log("Navigating to checkout with item:", buyNowItem);
+      navigate('/thanh-toan', { state: { buyNowItem } });
+    } catch (error) {
+      console.error("Error in handleBuyNow:", error);
+      alert("Có lỗi xảy ra khi chuyển hướng. Vui lòng thử lại.");
+    }
+
+  };
+
+
   // Xử lý submit đánh giá
   const handleSubmitReview = async () => {
     if (!id) return;
-    
+
     // Kiểm tra user đã đăng nhập chưa
     if (!user) {
       const confirmLogin = confirm("Bạn cần đăng nhập để đánh giá sản phẩm. Bạn có muốn đăng nhập ngay không?");
@@ -171,7 +219,7 @@ export default function ProductDetailPage() {
         rating: reviewForm.rating,
         comment: reviewForm.comment || undefined,
       });
-      
+
       // Reload reviews
       const data = await getProductReviews(Number(id));
       setReviews(data.reviews);
@@ -191,7 +239,7 @@ export default function ProductDetailPage() {
     } catch (error: any) {
       console.error("Lỗi khi thêm đánh giá:", error);
       const errorMessage = error.response?.data?.message || "Có lỗi xảy ra khi thêm đánh giá";
-      
+
       // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
       if (errorMessage.includes("đăng nhập") || error.response?.status === 401 || error.response?.status === 403) {
         const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn hoặc bạn chưa đăng nhập. Bạn có muốn đăng nhập lại không?");
@@ -211,19 +259,19 @@ export default function ProductDetailPage() {
     const starSize = size === "large" ? "28px" : "18px";
     const fullStar = "★";
     const emptyStar = "☆";
-    
+
     const handleStarClick = (star: number) => {
       if (interactive && onRatingChange) {
         onRatingChange(star);
       }
     };
-    
+
     return (
       <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
         <div style={{ display: "flex", gap: "2px" }}>
           {[1, 2, 3, 4, 5].map((star) => {
             const isActive = star <= (currentHover || rating);
-            
+
             return (
               <span
                 key={star}
@@ -249,8 +297,8 @@ export default function ProductDetailPage() {
           })}
         </div>
         {showNumber && (
-          <span style={{ 
-            marginLeft: "8px", 
+          <span style={{
+            marginLeft: "8px",
             fontSize: size === "large" ? "16px" : "14px",
             fontWeight: "600",
             color: "#666",
@@ -274,32 +322,32 @@ export default function ProductDetailPage() {
   // Get product images
   const getProductImages = () => {
     const images: string[] = [];
-    
+
     // Thêm thumbnail
     if (product.thumbnail) {
-      const thumbUrl = product.thumbnail.startsWith('http') 
-        ? product.thumbnail 
+      const thumbUrl = product.thumbnail.startsWith('http')
+        ? product.thumbnail
         : `http://127.0.0.1:8000/storage/${product.thumbnail}`;
       images.push(thumbUrl);
     }
-    
+
     // Thêm các ảnh khác từ images array
     if (product.images && Array.isArray(product.images)) {
       product.images.forEach((img: string) => {
         if (img && img !== product.thumbnail) {
-          const imgUrl = img.startsWith('http') 
-            ? img 
+          const imgUrl = img.startsWith('http')
+            ? img
             : `http://127.0.0.1:8000/storage/${img}`;
           images.push(imgUrl);
         }
       });
     }
-    
+
     // Fallback nếu không có ảnh nào
     if (images.length === 0) {
       images.push("https://cdn-icons-png.flaticon.com/512/1828/1828817.png");
     }
-    
+
     return images;
   };
 
@@ -323,7 +371,7 @@ export default function ProductDetailPage() {
                 <div className="image-navigation">
                   <button
                     className="image-nav-btn prev"
-                    onClick={() => setSelectedImageIndex((prev) => 
+                    onClick={() => setSelectedImageIndex((prev) =>
                       prev > 0 ? prev - 1 : productImages.length - 1
                     )}
                     aria-label="Ảnh trước"
@@ -332,7 +380,7 @@ export default function ProductDetailPage() {
                   </button>
                   <button
                     className="image-nav-btn next"
-                    onClick={() => setSelectedImageIndex((prev) => 
+                    onClick={() => setSelectedImageIndex((prev) =>
                       prev < productImages.length - 1 ? prev + 1 : 0
                     )}
                     aria-label="Ảnh sau"
@@ -345,7 +393,7 @@ export default function ProductDetailPage() {
                 {selectedImageIndex + 1} / {productImages.length}
               </div>
             </div>
-            
+
             {/* Thumbnail Gallery */}
             {productImages.length > 1 && (
               <div className="thumbnail-gallery">
@@ -364,7 +412,19 @@ export default function ProductDetailPage() {
 
           {/* THÔNG TIN */}
           <div className="product-info-section">
-            <h1 className="product-title">{product.name}</h1>
+            <h1 className="product-title">
+              {product.name}
+              {/* Hiển thị badge Hết hàng nếu tổng tồn kho = 0 */}
+              {(() => {
+                const totalStock = (product.variants && product.variants.length > 0)
+                  ? product.variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0)
+                  : (product.stock || 0);
+                if (totalStock === 0) {
+                  return <span className="out-of-stock-badge">HẾT HÀNG</span>;
+                }
+                return null;
+              })()}
+            </h1>
 
             <div className="product-price-section">
               <span className="current-price">
@@ -405,8 +465,8 @@ export default function ProductDetailPage() {
                         title={c.name}
                       >
                         {!c.code && !c.hex && (
-                          <span style={{ 
-                            fontSize: "10px", 
+                          <span style={{
+                            fontSize: "10px",
                             color: "#333",
                             fontWeight: "600"
                           }}>
@@ -420,7 +480,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            
+
             {/* SIZE */}
             {product.sizes?.length > 0 && (
               <div className="variant-section">
@@ -443,7 +503,7 @@ export default function ProductDetailPage() {
                     const isSelected = selectedSize === s.id;
                     const isAvailable = variantForSize && variantForSize.stock > 0;
                     const stock = variantForSize?.stock ?? 0;
-                    
+
                     return (
                       <button
                         key={s.id}
@@ -457,7 +517,7 @@ export default function ProductDetailPage() {
                           </span>
                           {isAvailable ? (
                             <span className={`size-stock ${isSelected ? "selected" : ""}`}>
-                            {stock} sản phẩm
+                              {stock} sản phẩm
                             </span>
                           ) : (
                             <span className="size-out-of-stock">Hết hàng</span>
@@ -478,6 +538,7 @@ export default function ProductDetailPage() {
                 <button
                   className="quantity-btn"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={(selectedVariant?.stock ?? 0) === 0}
                 >
                   −
                 </button>
@@ -487,6 +548,7 @@ export default function ProductDetailPage() {
                   onClick={() =>
                     setQuantity(Math.min(selectedVariant?.stock ?? quantity, quantity + 1))
                   }
+                  disabled={(selectedVariant?.stock ?? 0) === 0}
                 >
                   +
                 </button>
@@ -496,15 +558,22 @@ export default function ProductDetailPage() {
             {/* NÚT */}
             <div className="action-buttons">
               <button
-                className={`add-to-cart-btn ${isAdding ? "loading" : ""}`}
+                className={`add-to-cart-btn ${isAdding ? "loading" : ""} ${(selectedVariant?.stock ?? 0) === 0 ? "disabled" : ""}`}
                 onClick={handleAddToCart}
                 disabled={isAdding || (selectedVariant?.stock ?? 0) === 0}
+                style={(selectedVariant?.stock ?? 0) === 0 ? { backgroundColor: "#ccc", cursor: "not-allowed" } : {}}
               >
-                {isAdding ? "Đang thêm..." : "🛒 Thêm vào giỏ hàng"}
+                {isAdding ? "Đang thêm..." : (selectedVariant?.stock ?? 0) === 0 ? "HẾT HÀNG" : "🛒 Thêm vào giỏ hàng"}
               </button>
-              <button className="buy-now-btn" disabled={(selectedVariant?.stock ?? 0) === 0}>
-                💳 Mua ngay
+              <button
+                className="buy-now-btn"
+                onClick={handleBuyNow}
+                disabled={(selectedVariant?.stock ?? 0) === 0}
+                style={(selectedVariant?.stock ?? 0) === 0 ? { backgroundColor: "#999", cursor: "not-allowed" } : {}}
+              >
+                {(selectedVariant?.stock ?? 0) === 0 ? "HẾT HÀNG" : "💳 Mua ngay"}
               </button>
+
             </div>
 
           </div>
@@ -553,8 +622,8 @@ export default function ProductDetailPage() {
               <div style={{ flex: 1 }}>
                 {[5, 4, 3, 2, 1].map((star) => {
                   const count = reviewStats.rating_counts[star] || 0;
-                  const percentage = reviewStats.total_reviews > 0 
-                    ? (count / reviewStats.total_reviews) * 100 
+                  const percentage = reviewStats.total_reviews > 0
+                    ? (count / reviewStats.total_reviews) * 100
                     : 0;
                   return (
                     <div key={star} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
@@ -599,10 +668,10 @@ export default function ProductDetailPage() {
             >
               <h3 style={{ marginBottom: "20px" }}>Viết đánh giá của bạn</h3>
               {user && (
-                <div style={{ 
-                  marginBottom: "15px", 
-                  padding: "10px", 
-                  backgroundColor: "#f0f0f0", 
+                <div style={{
+                  marginBottom: "15px",
+                  padding: "10px",
+                  backgroundColor: "#f0f0f0",
                   borderRadius: "4px",
                   fontSize: "14px"
                 }}>
@@ -610,10 +679,10 @@ export default function ProductDetailPage() {
                 </div>
               )}
               {!user && (
-                <div style={{ 
-                  marginBottom: "15px", 
-                  padding: "10px", 
-                  backgroundColor: "#fff3cd", 
+                <div style={{
+                  marginBottom: "15px",
+                  padding: "10px",
+                  backgroundColor: "#fff3cd",
                   borderRadius: "4px",
                   fontSize: "14px",
                   color: "#856404"
@@ -634,8 +703,8 @@ export default function ProductDetailPage() {
                     (rating) => setReviewForm({ ...reviewForm, rating }),
                     hoverRating
                   )}
-                  <span style={{ 
-                    marginLeft: "12px", 
+                  <span style={{
+                    marginLeft: "12px",
                     fontSize: "18px",
                     fontWeight: "600",
                     color: "#333",

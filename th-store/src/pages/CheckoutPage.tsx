@@ -1,18 +1,24 @@
 import { useCart } from '../store/CartContext'
 import { useAuth } from '../store/AuthContext'
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { checkout } from '../api/checkout.api'
+import { createOrder } from '../api/order.api'
 import type { CheckoutPayload } from '../api/checkout.api'
 import { formatPrice } from '../utils/formatPrice'
-import { vietnamProvinces } from "../data/vietnam.provinces";
-import { vietnamDistricts } from "../data/vietnam.districts";
+import { geoApi } from '../api/geo.api'
+import type { Province, District, Ward } from '../api/geo.api'
 
 
 export default function CheckoutPage() {
-  const { items, getTotalPrice, clearCart, reloadCart } = useCart()
+  const { items, reloadCart } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const buyNowItem = location.state?.buyNowItem
+
+
+
 
   const [formData, setFormData] = useState({
     fullName: user?.name || '',
@@ -31,13 +37,109 @@ export default function CheckoutPage() {
   const [currentOrder, setCurrentOrder] = useState<any>(null)
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
 
+  // Geo State
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
+  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+
+  // Xác định danh sách sản phẩm cần thanh toán (từ giỏ hàng hoặc mua ngay)
+  const selectedItemIds = location.state?.selectedItemIds;
+
+  const checkoutItems = buyNowItem
+    ? [buyNowItem]
+    : (selectedItemIds
+      ? items.filter(item => selectedItemIds.includes(Number(item.id)))
+      : items);
+
+  // Tính tổng tiền
+  const checkoutTotal = buyNowItem
+    ? buyNowItem.price * buyNowItem.quantity
+    : checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   // Load coupon từ localStorage
   useEffect(() => {
+
     const savedCouponCode = localStorage.getItem("coupon_code");
     if (savedCouponCode) {
       setCouponCode(savedCouponCode);
     }
   }, []);
+
+  // Fetch Provinces
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const data = await geoApi.getProvinces();
+        setProvinces(data);
+      } catch (error) {
+        console.error("Failed to fetch provinces:", error);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  // Fetch Districts when Province changes
+  useEffect(() => {
+    if (selectedProvince) {
+      const fetchDistricts = async () => {
+        try {
+          const data = await geoApi.getDistricts(selectedProvince.id);
+          setDistricts(data);
+          setWards([]);
+          setSelectedDistrict(null);
+          setSelectedWard(null);
+        } catch (error) {
+          console.error("Failed to fetch districts:", error);
+        }
+      };
+      fetchDistricts();
+    } else {
+      setDistricts([]);
+      setWards([]);
+    }
+  }, [selectedProvince]);
+
+  // Fetch Wards when District changes
+  useEffect(() => {
+    if (selectedDistrict) {
+      const fetchWards = async () => {
+        try {
+          const data = await geoApi.getWards(selectedDistrict.id);
+          setWards(data);
+          setSelectedWard(null);
+        } catch (error) {
+          console.error("Failed to fetch wards:", error);
+        }
+      };
+      fetchWards();
+    } else {
+      setWards([]);
+    }
+  }, [selectedDistrict]);
+
+  const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const provinceId = Number(e.target.value);
+    const province = provinces.find(p => p.id === provinceId) || null;
+    setSelectedProvince(province);
+    setFormData({ ...formData, province: province ? province.name : '' });
+  };
+
+  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const districtId = Number(e.target.value);
+    const district = districts.find(d => d.id === districtId) || null;
+    setSelectedDistrict(district);
+    setFormData({ ...formData, city: district ? district.name : '' });
+  };
+
+  const handleWardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const wardId = Number(e.target.value);
+    const ward = wards.find(w => w.id === wardId) || null;
+    setSelectedWard(ward);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,6 +156,9 @@ export default function CheckoutPage() {
       address: formData.address.trim(),
       city: formData.city.trim(),
       province: formData.province?.trim() || undefined,
+      province_id: selectedProvince?.id,
+      district_id: selectedDistrict?.id,
+      ward_id: selectedWard?.id,
       payment_method: formData.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'cod'
     }
 
@@ -62,29 +167,67 @@ export default function CheckoutPage() {
       checkoutData.coupon_code = couponCode.trim();
     }
 
+    // Thêm cart_item_ids nếu có
+    if (!buyNowItem && selectedItemIds) {
+      checkoutData.cart_item_ids = selectedItemIds;
+    }
+
     setIsSubmitting(true)
     try {
       console.log('Sending checkout data:', checkoutData)
-      const response = await checkout(checkoutData)
+
+      let response;
+      let order;
+
+      if (buyNowItem) {
+        // Xử lý tạo đơn hàng trực tiếp
+        const orderData = {
+          ...checkoutData,
+          items: [{
+            product_id: buyNowItem.product_id,
+            variant_id: buyNowItem.variant_id,
+            quantity: buyNowItem.quantity,
+            price: buyNowItem.price
+          }],
+          total_price: checkoutTotal
+        };
+        console.log('Creating direct order:', orderData);
+        // createOrder returns { message: string, data: Order } usually, need to check API response structure
+        const result = await createOrder(orderData);
+        // Assuming createOrder returns the order object or { data: order }
+        // Looking at order.api.ts: return res.data.data. So result is the order object.
+        order = result;
+        response = { order, qr_code: order.qr_code }; // Mock response structure to match below logic if needed
+      } else {
+        const res = await checkout(checkoutData)
+        response = res;
+        order = res.order;
+      }
+
       console.log('Checkout response:', response)
-      
-      if (!response || !response.order) {
+      console.log('Order created:', order);
+
+      if (!order) {
         throw new Error('Không nhận được dữ liệu đơn hàng từ server')
       }
 
-      const order = response.order
-
       // Nếu là chuyển khoản và có QR code
-      if (formData.paymentMethod === 'bank_transfer' && response.qr_code) {
-        setQrData(response.qr_code)
+      // Check response.qr_code for checkout() or order.qr_code for createOrder()
+      const qrCode = (response && response.qr_code) || (order && order.qr_code);
+
+      if (formData.paymentMethod === 'bank_transfer' && qrCode) {
+        setQrData(qrCode)
         setCurrentOrder(order)
         setShowQRModal(true)
         setIsCheckingPayment(true)
         startPaymentPolling(order.id)
       } else {
-        // COD - xóa giỏ hàng và chuyển đến trang thành công
-        await clearCart()
-        await reloadCart()
+        // Success logic
+        if (!buyNowItem) {
+          // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
+          await reloadCart()
+        }
+
         localStorage.removeItem("applied_coupon");
         localStorage.removeItem("coupon_discount");
         localStorage.removeItem("coupon_code");
@@ -97,9 +240,9 @@ export default function CheckoutPage() {
       console.error('Checkout error:', err)
       console.error('Error response:', err?.response?.data)
       console.error('Error status:', err?.response?.status)
-      
+
       let errorMessage = 'Đặt hàng thất bại! Vui lòng thử lại.'
-      
+
       if (err?.response?.data) {
         // Nếu có validation errors
         if (err.response.data.errors) {
@@ -117,7 +260,7 @@ export default function CheckoutPage() {
       } else if (err?.message) {
         errorMessage = err.message
       }
-      
+
       // Hiển thị lỗi chi tiết hơn
       alert(`Lỗi: ${errorMessage}\n\nVui lòng kiểm tra:\n- Thông tin đã điền đầy đủ chưa\n- Sản phẩm còn tồn kho không\n- Kết nối mạng`)
     } finally {
@@ -151,20 +294,19 @@ export default function CheckoutPage() {
             'Accept': 'application/json'
           }
         });
-        
+
         if (response.ok) {
           const order = await response.json();
           if (order.payment_status === 'paid') {
             clearInterval(pollInterval);
             setIsCheckingPayment(false);
-            
-            // Xóa giỏ hàng và coupon
-            await clearCart()
+
+            // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
             await reloadCart()
             localStorage.removeItem("applied_coupon");
             localStorage.removeItem("coupon_discount");
             localStorage.removeItem("coupon_code");
-            
+
             // Đóng modal và chuyển đến trang thành công
             setShowQRModal(false);
             navigate('/dat-hang-thanh-cong', {
@@ -185,7 +327,7 @@ export default function CheckoutPage() {
   };
 
 
-  if (items.length === 0) {
+  if (items.length === 0 && !buyNowItem) {
     return (
       <div className="main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
         <div style={{
@@ -418,39 +560,8 @@ export default function CheckoutPage() {
                   fontWeight: "600",
                   color: "#374151"
                 }}>
-                  Quận/Huyện *
+                  Tỉnh/Thành phố *
                 </label>
-                <select
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    background: "white",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box"
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#3b82f6";
-                    e.currentTarget.style.outline = "none";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#d1d5db";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="">-- Chọn quận / huyện --</option>
-                  {vietnamDistricts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
               </div>
               <div>
                 <label style={{
@@ -460,12 +571,11 @@ export default function CheckoutPage() {
                   fontWeight: "600",
                   color: "#374151"
                 }}>
-                  Tỉnh/Thành phố *
                 </label>
                 <select
                   name="province"
-                  value={formData.province}
-                  onChange={handleChange}
+                  value={selectedProvince?.id || ''}
+                  onChange={handleProvinceChange}
                   required
                   style={{
                     width: "100%",
@@ -488,9 +598,90 @@ export default function CheckoutPage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  <option value="">-- Chọn tỉnh / thành phố --</option>
-                  {vietnamProvinces.map((p) => (
-                    <option key={p} value={p}>{p}</option>
+                  <option value="">-- Chọn Tỉnh / Thành phố --</option>
+                  {provinces.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151"
+                }}>
+                  Quận/Huyện *
+                </label>
+                <select
+                  name="city"
+                  value={selectedDistrict?.id || ''}
+                  onChange={handleDistrictChange}
+                  required
+                  disabled={!selectedProvince}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    background: !selectedProvince ? "#f3f4f6" : "white",
+                    cursor: !selectedProvince ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => {
+                    if (selectedProvince) {
+                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.outline = "none";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#d1d5db";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <option value="">-- Chọn Quận / Huyện --</option>
+                  {districts.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151"
+                }}>
+                  Phường/Xã *
+                </label>
+                <select
+                  name="ward"
+                  value={selectedWard?.id || ''}
+                  onChange={handleWardChange}
+                  required
+                  disabled={!selectedDistrict}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    background: !selectedDistrict ? "#f3f4f6" : "white",
+                    cursor: !selectedDistrict ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box"
+                  }}
+                >
+                  <option value="">-- Chọn Phường / Xã --</option>
+                  {wards.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
                 </select>
               </div>
@@ -595,9 +786,9 @@ export default function CheckoutPage() {
 
           {/* Danh sách sản phẩm */}
           <div style={{ marginBottom: "24px", maxHeight: "400px", overflowY: "auto" }}>
-            {items.map((item) => (
+            {checkoutItems.map((item) => (
               <div
-                key={item.id}
+                key={item.id || item.product_id}
                 style={{
                   display: "flex",
                   gap: "12px",
@@ -694,7 +885,7 @@ export default function CheckoutPage() {
             }}>
               <span style={{ color: "#6b7280" }}>Tạm tính:</span>
               <span style={{ fontWeight: "600" }}>
-                {formatPrice(getTotalPrice())}
+                {formatPrice(checkoutTotal)}
               </span>
             </div>
             <div style={{
@@ -705,6 +896,20 @@ export default function CheckoutPage() {
               <span style={{ color: "#6b7280" }}>Phí vận chuyển:</span>
               <span style={{ fontWeight: "600", color: "#059669" }}>Miễn phí</span>
             </div>
+
+            {!buyNowItem && couponCode && (
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "12px"
+              }}>
+                <span style={{ color: "#6b7280" }}>Mã giảm giá ({couponCode}):</span>
+                <span style={{ fontWeight: "600", color: "#ef4444" }}>
+                  -{formatPrice(Number(localStorage.getItem("coupon_discount") || 0))}
+                </span>
+              </div>
+            )}
+
             <div style={{
               display: "flex",
               justifyContent: "space-between",
@@ -720,9 +925,11 @@ export default function CheckoutPage() {
                 fontWeight: "700",
                 color: "#059669"
               }}>
-                {formatPrice(getTotalPrice())}
+                {formatPrice(Math.max(0, checkoutTotal - (buyNowItem ? 0 : Number(localStorage.getItem("coupon_discount") || 0))))}
               </span>
+
             </div>
+
           </div>
 
           <Link
@@ -915,70 +1122,7 @@ export default function CheckoutPage() {
               )}
 
               <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  onClick={async () => {
-                    try {
-                      const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
-                      const transactionId = `TXN${currentOrder.id}${Date.now()}`;
-                      
-                      const response = await fetch(`http://127.0.0.1:8000/api/orders/${currentOrder.id}/confirm-payment`, {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json',
-                          'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                          transaction_id: transactionId
-                        })
-                      });
 
-                      if (response.ok) {
-                        const result = await response.json();
-                        setIsCheckingPayment(false);
-                        
-                        // Xóa giỏ hàng và coupon
-                        await clearCart()
-                        await reloadCart()
-                        localStorage.removeItem("applied_coupon");
-                        localStorage.removeItem("coupon_discount");
-                        localStorage.removeItem("coupon_code");
-                        
-                        // Đóng modal và chuyển đến trang thành công
-                        setShowQRModal(false);
-                        navigate('/dat-hang-thanh-cong', {
-                          state: { order: result.order }
-                        });
-                      } else {
-                        const error = await response.json();
-                        alert(error.message || 'Có lỗi xảy ra khi xác nhận thanh toán');
-                      }
-                    } catch (err) {
-                      console.error('Lỗi xác nhận thanh toán:', err);
-                      alert('Có lỗi xảy ra khi xác nhận thanh toán');
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "12px 24px",
-                    background: "#10b981",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#059669";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#10b981";
-                  }}
-                >
-                  Đã thanh toán
-                </button>
                 <button
                   onClick={() => {
                     setShowQRModal(false);

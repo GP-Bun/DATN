@@ -7,9 +7,15 @@ export interface CheckoutPayload {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: number;
+  district_id?: number;
+  ward_id?: number;
   payment_method?: string;
   coupon_code?: string;
+  cart_item_ids?: number[];
 }
+
+
 
 export interface CheckoutResponse {
   message: string;

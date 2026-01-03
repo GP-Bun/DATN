@@ -61,7 +61,7 @@ export default function HomePage() {
                     }
                     return "https://bizweb.dktcdn.net/100/347/092/files/giay-sneaker-la-gi-1.jpg?v=1599104032003";
                   };
-                  
+
                   return (
                     <a key={b.id as number} href={b.link as string || '#'}>
                       <img src={getBannerUrl()} alt={`banner-${b.id as number}`} className="hero-img" />
@@ -104,33 +104,53 @@ export default function HomePage() {
                 }
                 return "https://cdn-icons-png.flaticon.com/512/1828/1828817.png";
               };
-              
+
+              const totalStock = (p.variants && p.variants.length > 0)
+                ? p.variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0)
+                : (p.stock || 0);
+
               return (
-              <div className="product-card" key={p.id as number}>
-                <div className="product-image">
-                  <img
-                    src={getImageUrl()}
-                    alt={p.name}
-                  />
-                  <div className="product-overlay">
-                    <Link to={`/san-pham/${p.id as number}`} className="quick-view-btn">👁️ Xem nhanh</Link>
+                <div className="product-card" key={p.id as number}>
+                  <div className="product-image">
+                    <img
+                      src={getImageUrl()}
+                      alt={p.name}
+                    />
+                    {totalStock === 0 && (
+                      <div className="out-of-stock-badge-card" style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        zIndex: 2
+                      }}>
+                        Hết hàng
+                      </div>
+                    )}
+                    <div className="product-overlay">
+                      <Link to={`/san-pham/${p.id as number}`} className="quick-view-btn">👁️ Xem nhanh</Link>
+                    </div>
+                  </div>
+                  <div className="product-info">
+                    <h3>{p.name as string}</h3>
+                    <p className="product-price">{new Intl.NumberFormat('vi-VN', {
+                      style: 'decimal',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(Number(p.price as number))}đ</p>
+                    <div className="product-rating">
+                      {/* Nếu API không có reviews, hiển thị 0 */}
+                      <span>⭐⭐⭐⭐⭐</span>
+                      <span>({p.reviews as number || 0} đánh giá)</span>
+                    </div>
+                    <Link to={`/san-pham/${p.id as number}`} className="product-link">Xem chi tiết</Link>
                   </div>
                 </div>
-                <div className="product-info">
-                  <h3>{p.name as string}</h3>
-                  <p className="product-price">{new Intl.NumberFormat('vi-VN', {
-                    style: 'decimal',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                  }).format(Number(p.price as number))}đ</p>
-                  <div className="product-rating">
-                    {/* Nếu API không có reviews, hiển thị 0 */}
-                    <span>⭐⭐⭐⭐⭐</span>
-                    <span>({p.reviews as number || 0} đánh giá)</span>
-                  </div>
-                  <Link to={`/san-pham/${p.id as number}`} className="product-link">Xem chi tiết</Link>
-                </div>
-              </div>
               );
             })
           ) : (

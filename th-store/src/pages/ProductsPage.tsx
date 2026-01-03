@@ -81,22 +81,44 @@ export default function ProductsPage() {
       </div>
 
       <div className="grid">
-        {filtered.map((product: any) => (
-          <div key={product.id} className="card">
-            <img
-              src={getImage(product)}
-              alt={product.name}
-            />
-            <h3>{product.name}</h3>
-            <p className="price">{new Intl.NumberFormat('vi-VN', {
-              style: 'decimal',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            }).format(product.price)}đ</p>
-            <p className="category">{product.category?.name || "Không có danh mục"}</p>
-            <Link to={`/san-pham/${product.id}`}>Xem chi tiết</Link>
-          </div>
-        ))}
+        {filtered.map((product: any) => {
+          const totalStock = (product.variants && product.variants.length > 0)
+            ? product.variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0)
+            : (product.stock || 0);
+          return (
+            <div key={product.id} className="card" style={{ position: 'relative' }}>
+              <img
+                src={getImage(product)}
+                alt={product.name}
+              />
+              {totalStock === 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  zIndex: 2
+                }}>
+                  Hết hàng
+                </div>
+              )}
+              <h3>{product.name}</h3>
+              <p className="price">{new Intl.NumberFormat('vi-VN', {
+                style: 'decimal',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(product.price)}đ</p>
+              <p className="category">{product.category?.name || "Không có danh mục"}</p>
+              <Link to={`/san-pham/${product.id}`}>Xem chi tiết</Link>
+            </div>
+          );
+        })}
+
       </div>
 
       {filtered.length === 0 && (
