@@ -1,29 +1,33 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../api/api'
+import { geoApi } from '../api/geo.api'
+import type { Province, District, Ward } from '../api/geo.api'
 
 interface Address {
   id: number
   receiver_name: string
   receiver_phone: string
   line1: string
-  city: string
-  province: string
+  province: {
+    id: number
+    name: string
+  }
+  district: {
+    id: number
+    name: string
+  }
+  ward: {
+    id: number
+    name: string
+  }
   zip?: string
   is_default: boolean
 }
 
-const userApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" })
-
-userApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
 export default function ProfilePage() {
-  const { user, logoutUser } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -31,6 +35,10 @@ export default function ProfilePage() {
   const [isEditingAddress, setIsEditingAddress] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  const [provinces, setProvinces] = useState<Province[]>([])
+  const [districts, setDistricts] = useState<District[]>([])
+  const [wards, setWards] = useState<Ward[]>([])
 
   const [profileData, setProfileData] = useState({
     name: (user as any)?.name || '',
@@ -42,24 +50,72 @@ export default function ProfilePage() {
     receiver_name: '',
     receiver_phone: '',
     line1: '',
-    city: '',
-    province: '',
+    province_id: 0,
+    district_id: 0,
+    ward_id: 0,
     zip: '',
     is_default: false,
   })
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       navigate('/dang-nhap')
       return
     }
-    loadAddresses()
-    loadUserProfile()
-  }, [user])
+    if (user) {
+      loadAddresses()
+      loadUserProfile()
+      loadProvinces()
+    }
+  }, [user, authLoading])
+
+  useEffect(() => {
+    if (addressData.province_id) {
+      loadDistricts(addressData.province_id)
+    } else {
+      setDistricts([])
+      setWards([])
+    }
+  }, [addressData.province_id])
+
+  useEffect(() => {
+    if (addressData.district_id) {
+      loadWards(addressData.district_id)
+    } else {
+      setWards([])
+    }
+  }, [addressData.district_id])
+
+  const loadProvinces = async () => {
+    try {
+      const data = await geoApi.getProvinces()
+      setProvinces(data)
+    } catch (err) {
+      console.error('Lỗi tải tỉnh/thành:', err)
+    }
+  }
+
+  const loadDistricts = async (provinceId: number) => {
+    try {
+      const data = await geoApi.getDistricts(provinceId)
+      setDistricts(data)
+    } catch (err) {
+      console.error('Lỗi tải quận/huyện:', err)
+    }
+  }
+
+  const loadWards = async (districtId: number) => {
+    try {
+      const data = await geoApi.getWards(districtId)
+      setWards(data)
+    } catch (err) {
+      console.error('Lỗi tải phường/xã:', err)
+    }
+  }
 
   const loadUserProfile = async () => {
     try {
-      const res = await userApi.get('/user-profile')
+      const res = await api.get('/user-profile')
       const userData = res.data.user
       setProfileData({
         name: userData.name || '',
@@ -76,8 +132,9 @@ export default function ProfilePage() {
 
   const loadAddresses = async () => {
     try {
-      const res = await userApi.get('/addresses')
-      setAddresses(res.data)
+      const res = await api.get('/addresses')
+      // AddressResource wraps data in 'data' key when using collection()
+      setAddresses(res.data.data || res.data)
     } catch (err) {
       console.error('Lỗi tải địa chỉ:', err)
     }
@@ -104,6 +161,7 @@ export default function ProfilePage() {
     try {
       const formData = new FormData()
       formData.append('name', profileData.name)
+      formData.append('email', profileData.email)
       if (profileData.phone) formData.append('phone', profileData.phone)
 
       const avatarInput = document.getElementById('avatar-input') as HTMLInputElement
@@ -111,14 +169,14 @@ export default function ProfilePage() {
         formData.append('avatar', avatarInput.files[0])
       }
 
-      await userApi.post('/user-profile', formData, {
+      await api.post('/user-profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
       alert('Cập nhật thông tin thành công!')
       setIsEditingProfile(false)
+      await refreshUser()
       await loadUserProfile()
-      window.location.reload()
     } catch (err: any) {
       console.error(err)
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin')
@@ -129,13 +187,17 @@ export default function ProfilePage() {
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!addressData.province_id || !addressData.district_id || !addressData.ward_id) {
+      alert('Vui lòng chọn đầy đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã')
+      return
+    }
     setLoading(true)
     try {
       if (editingAddressId) {
-        await userApi.put(`/addresses/${editingAddressId}`, addressData)
+        await api.put(`/addresses/${editingAddressId}`, addressData)
         alert('Cập nhật địa chỉ thành công!')
       } else {
-        await userApi.post('/addresses', addressData)
+        await api.post('/addresses', addressData)
         alert('Thêm địa chỉ thành công!')
       }
       setIsEditingAddress(false)
@@ -144,8 +206,9 @@ export default function ProfilePage() {
         receiver_name: '',
         receiver_phone: '',
         line1: '',
-        city: '',
-        province: '',
+        province_id: 0,
+        district_id: 0,
+        ward_id: 0,
         zip: '',
         is_default: false,
       })
@@ -163,8 +226,9 @@ export default function ProfilePage() {
       receiver_name: address.receiver_name,
       receiver_phone: address.receiver_phone,
       line1: address.line1,
-      city: address.city,
-      province: address.province,
+      province_id: address.province.id,
+      district_id: address.district.id,
+      ward_id: address.ward.id,
       zip: address.zip || '',
       is_default: address.is_default,
     })
@@ -175,7 +239,7 @@ export default function ProfilePage() {
   const handleDeleteAddress = async (id: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return
     try {
-      await userApi.delete(`/addresses/${id}`)
+      await api.delete(`/addresses/${id}`)
       alert('Xóa địa chỉ thành công!')
       await loadAddresses()
     } catch (err: any) {
@@ -186,11 +250,12 @@ export default function ProfilePage() {
 
   const getImageUrl = (image: string | undefined | null) => {
     if (!image) return "https://via.placeholder.com/150?text=No+Avatar";
-    if (image.startsWith("http")) return image;
+    if (image.startsWith("http") || image.startsWith("data:")) return image;
     if (image.startsWith("/")) return `http://127.0.0.1:8000${image}`;
     return `http://127.0.0.1:8000/storage/${image}`;
   };
 
+  if (authLoading) return <div className="main" style={{ textAlign: 'center', padding: '100px' }}>Đang tải...</div>;
   if (!user) return null;
 
   return (
@@ -219,23 +284,33 @@ export default function ProfilePage() {
           <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#1f2937" }}>
             Thông tin cá nhân
           </h2>
-          {!isEditingProfile && (
-            <button
-              onClick={() => setIsEditingProfile(true)}
-              style={{
-                padding: "8px 16px",
-                background: "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "600"
-              }}
-            >
-              Chỉnh sửa
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "12px" }}>
+            {!isEditingProfile && (
+              <button
+                onClick={() => setIsEditingProfile(true)}
+                style={{
+                  padding: "8px 16px",
+                  background: "white",
+                  color: "#3b82f6",
+                  border: "1px solid #3b82f6",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600"
+                }}
+              >
+                Chỉnh sửa profile
+              </button>
+            )}
+            {!isEditingAddress && (
+              <button
+                onClick={() => { setEditingAddressId(null); setAddressData({ receiver_name: '', receiver_phone: '', line1: '', province_id: 0, district_id: 0, ward_id: 0, zip: '', is_default: false }); setIsEditingAddress(true); }}
+                style={{ padding: "8px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontWeight: "600" }}
+              >
+                + Thêm địa chỉ mới
+              </button>
+            )}
+          </div>
         </div>
 
         {!isEditingProfile ? (
@@ -288,12 +363,24 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
-                <input type="text" placeholder="Họ và tên" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} required
-                  style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
-                />
-                <input type="tel" placeholder="Số điện thoại" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                  style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
-                />
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px" }}>HỌ VÀ TÊN</label>
+                  <input type="text" placeholder="Họ và tên" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} required
+                    style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px" }}>EMAIL</label>
+                  <input type="email" placeholder="Email" value={profileData.email} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} required
+                    style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#6b7280", marginBottom: "4px" }}>SỐ ĐIỆN THOẠI</label>
+                  <input type="tel" placeholder="Số điện thoại" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                    style={{ width: "100%", padding: "12px 16px", border: "1px solid #d1d5db", borderRadius: "8px" }}
+                  />
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
@@ -302,72 +389,74 @@ export default function ProfilePage() {
             </div>
           </form>
         )}
-      </div>
+        {/* Divider and Addressing section merged inside */}
+        <div style={{ marginTop: "40px", paddingTop: "32px", borderTop: "2px solid #f3f4f6" }}>
+          <h2 style={{ margin: "0 0 24px 0", fontSize: "22px", fontWeight: "700", color: "#1f2937", display: "flex", alignItems: "center", gap: "8px" }}>
+            📍 Danh sách địa chỉ
+          </h2>
 
-      {/* ĐỊA CHỈ CỦA TÔI */}
-      <div style={{
-        background: "white", borderRadius: "12px", padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #e5e7eb", marginBottom: "32px"
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "2px solid #e5e7eb", paddingBottom: "16px" }}>
-          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#1f2937" }}>Địa chỉ của tôi</h2>
-          {!isEditingAddress && (
-            <button onClick={() => { setEditingAddressId(null); setAddressData({ receiver_name: '', receiver_phone: '', line1: '', city: '', province: '', zip: '', is_default: false }); setIsEditingAddress(true); }}
-              style={{ padding: "8px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
-            >
-              Thêm địa chỉ mới
-            </button>
+          {isEditingAddress ? (
+            <form onSubmit={handleSaveAddress} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", background: "#f9fafb", padding: "24px", borderRadius: "12px", border: "1px solid #e5e7eb" }}>
+              <div style={{ gridColumn: "span 2", marginBottom: "8px" }}>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>{editingAddressId ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ mới'}</h3>
+              </div>
+              <input type="text" placeholder="Tên người nhận" value={addressData.receiver_name} onChange={(e) => setAddressData({ ...addressData, receiver_name: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+              <input type="tel" placeholder="Số điện thoại" value={addressData.receiver_phone} onChange={(e) => setAddressData({ ...addressData, receiver_phone: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+              <input type="text" placeholder="Địa chỉ chi tiết (Số nhà, tên đường...)" value={addressData.line1} onChange={(e) => setAddressData({ ...addressData, line1: e.target.value })} required style={{ gridColumn: "span 2", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
+
+              <select value={addressData.province_id} onChange={(e) => setAddressData({ ...addressData, province_id: Number(e.target.value), district_id: 0, ward_id: 0 })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", background: "white" }}>
+                <option value="0">Chọn Tỉnh/Thành phố</option>
+                {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+
+              <select value={addressData.district_id} onChange={(e) => setAddressData({ ...addressData, district_id: Number(e.target.value), ward_id: 0 })} required disabled={!addressData.province_id} style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", background: !addressData.province_id ? "#f3f4f6" : "white" }}>
+                <option value="0">Chọn Quận/Huyện</option>
+                {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+
+              <select value={addressData.ward_id} onChange={(e) => setAddressData({ ...addressData, ward_id: Number(e.target.value) })} required disabled={!addressData.district_id} style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", background: !addressData.district_id ? "#f3f4f6" : "white" }}>
+                <option value="0">Chọn Phường/Xã</option>
+                {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+
+              <div style={{ gridColumn: "span 1" }}></div>
+
+              <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                <input type="checkbox" checked={addressData.is_default} onChange={(e) => setAddressData({ ...addressData, is_default: e.target.checked })} /> Đặt làm địa chỉ mặc định
+              </label>
+              <div style={{ gridColumn: "span 2", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setIsEditingAddress(false)} style={{ padding: "12px 24px", background: "white", border: "1px solid #d1d5db", borderRadius: "8px" }}>Hủy</button>
+                <button type="submit" style={{ padding: "12px 24px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}>Lưu địa chỉ</button>
+              </div>
+            </form>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {addresses.length === 0 ? (
+                <p style={{ color: "#6b7280", textAlign: "center", padding: "40px", background: "#f9fafb", borderRadius: "12px", border: "1px dashed #d1d5db" }}>Bạn chưa có địa chỉ nào.</p>
+              ) : (
+                addresses.map(addr => (
+                  <div key={addr.id} style={{ padding: "20px", border: "1px solid #e5e7eb", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+                        <span style={{ fontWeight: "700", fontSize: "16px" }}>{addr.receiver_name}</span>
+                        <span style={{ color: "#6b7280", fontSize: "14px" }}>| {addr.receiver_phone}</span>
+                        {addr.is_default && <span style={{ padding: "2px 8px", background: "#fef2f2", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", fontSize: "12px" }}>Mặc định</span>}
+                      </div>
+                      <p style={{ margin: 0, color: "#4b5563" }}>{addr.line1}</p>
+                      <p style={{ margin: 0, color: "#4b5563" }}>{addr.ward.name}, {addr.district.name}, {addr.province.name}</p>
+                    </div>
+                    <div style={{ display: "flex", gap: "16px" }}>
+                      <button onClick={() => handleEditAddress(addr)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", fontWeight: "600" }}>Sửa</button>
+                      {!addr.is_default && <button onClick={() => handleDeleteAddress(addr.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "600" }}>Xóa</button>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
-
-        {isEditingAddress ? (
-          <form onSubmit={handleSaveAddress} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <input type="text" placeholder="Tên người nhận" value={addressData.receiver_name} onChange={(e) => setAddressData({ ...addressData, receiver_name: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
-            <input type="tel" placeholder="Số điện thoại" value={addressData.receiver_phone} onChange={(e) => setAddressData({ ...addressData, receiver_phone: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
-            <input type="text" placeholder="Địa chỉ chi tiết" value={addressData.line1} onChange={(e) => setAddressData({ ...addressData, line1: e.target.value })} required style={{ gridColumn: "span 2", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
-            <input type="text" placeholder="Quận/Huyện" value={addressData.city} onChange={(e) => setAddressData({ ...addressData, city: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
-            <input type="text" placeholder="Tỉnh/Thành phố" value={addressData.province} onChange={(e) => setAddressData({ ...addressData, province: e.target.value })} required style={{ padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px" }} />
-            <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: "8px" }}>
-              <input type="checkbox" checked={addressData.is_default} onChange={(e) => setAddressData({ ...addressData, is_default: e.target.checked })} /> Đặt làm địa chỉ mặc định
-            </label>
-            <div style={{ gridColumn: "span 2", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setIsEditingAddress(false)} style={{ padding: "12px 24px", background: "white", border: "1px solid #d1d5db", borderRadius: "8px" }}>Hủy</button>
-              <button type="submit" style={{ padding: "12px 24px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}>Lưu địa chỉ</button>
-            </div>
-          </form>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {addresses.length === 0 ? (
-              <p style={{ color: "#6b7280", textAlign: "center" }}>Bạn chưa có địa chỉ nào.</p>
-            ) : (
-              addresses.map(addr => (
-                <div key={addr.id} style={{ padding: "20px", border: "1px solid #e5e7eb", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
-                      <span style={{ fontWeight: "700", fontSize: "16px" }}>{addr.receiver_name}</span>
-                      <span style={{ color: "#6b7280", fontSize: "14px" }}>| {addr.receiver_phone}</span>
-                      {addr.is_default && <span style={{ padding: "2px 8px", background: "#fef2f2", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", fontSize: "12px" }}>Mặc định</span>}
-                    </div>
-                    <p style={{ margin: 0, color: "#4b5563" }}>{addr.line1}</p>
-                    <p style={{ margin: 0, color: "#4b5563" }}>{addr.city}, {addr.province}</p>
-                  </div>
-                  <div style={{ display: "flex", gap: "16px" }}>
-                    <button onClick={() => handleEditAddress(addr)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer" }}>Sửa</button>
-                    {!addr.is_default && <button onClick={() => handleDeleteAddress(addr.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>Xóa</button>}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
       </div>
 
-      <div style={{ textAlign: "center" }}>
-        <button onClick={async () => { if (window.confirm('Bạn có chắc muốn đăng xuất?')) { await logoutUser(); navigate('/'); } }}
-          style={{ padding: "12px 24px", background: "#ef4444", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
-        >
-          Đăng xuất
-        </button>
-      </div>
     </div>
   )
 }
