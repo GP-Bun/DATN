@@ -127,8 +127,6 @@ export default function ProductDetailPage() {
       await addToCart(
         product.id, // product_id
         quantity,
-        selectedColor?.toString() ?? null,
-        selectedSize?.toString() ?? null,
         selectedVariant.id // variant_id
       );
       // Không reload trang, chỉ hiển thị thông báo
@@ -542,13 +540,44 @@ export default function ProductDetailPage() {
                 >
                   −
                 </button>
-                <span className="quantity-display">{quantity}</span>
+                <input
+                  type="number"
+                  value={quantity}
+                  min="1"
+                  max={selectedVariant?.stock ?? 1}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val)) {
+                      const maxStock = selectedVariant?.stock ?? 1;
+                      const sanitizedVal = Math.max(1, Math.min(val, maxStock));
+                      setQuantity(sanitizedVal);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (isNaN(val) || val < 1) {
+                      setQuantity(1);
+                    }
+                  }}
+                  style={{
+                    width: "60px",
+                    textAlign: "center",
+                    fontSize: "18px",
+                    fontWeight: "700",
+                    color: "#1f2937",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    padding: "8px 4px",
+                    background: "white"
+                  }}
+                />
                 <button
                   className="quantity-btn"
                   onClick={() =>
                     setQuantity(Math.min(selectedVariant?.stock ?? quantity, quantity + 1))
                   }
-                  disabled={(selectedVariant?.stock ?? 0) === 0}
+                  disabled={(selectedVariant?.stock ?? 0) === 0 || quantity >= (selectedVariant?.stock ?? 0)}
+                  style={quantity >= (selectedVariant?.stock ?? 0) ? { cursor: "not-allowed", opacity: 0.5 } : {}}
                 >
                   +
                 </button>

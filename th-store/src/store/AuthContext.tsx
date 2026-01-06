@@ -1,6 +1,6 @@
 // src/store/AuthContext.tsx
 import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 // ==================== Types ====================
 type User = { id: number; name: string; email: string };
@@ -16,6 +16,7 @@ type AuthContextValue = {
   registerAdmin: (name: string, email: string, password: string) => Promise<void>;
   logoutUser: () => void;
   logoutAdmin: () => void;
+  refreshUser: () => Promise<void>;
 };
 
 // ==================== Context ====================
@@ -54,12 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginUser = async (email: string, password: string, remember = false) => {
     try {
       const res = await userApi.post<{ user: User; access_token: string }>("/login", { email, password });
-      
+
       // Kiểm tra response có đầy đủ dữ liệu không
       if (!res.data.user || !res.data.access_token) {
         throw { message: "Phản hồi từ server không hợp lệ" };
       }
-      
+
       setUser(res.data.user);
 
       // Luôn lưu token để có thể gọi API
@@ -126,6 +127,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("admin_token");
   };
 
+  const refreshUser = async () => {
+    const userToken = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+    if (userToken) {
+      try {
+        const res = await userApi.get<{ user: User }>("/user-profile");
+        setUser(res.data.user);
+      } catch (err) {
+        console.error("Refresh user failed", err);
+        setUser(null);
+        localStorage.removeItem("user_token");
+        sessionStorage.removeItem("user_token");
+      }
+    }
+  };
+
   // -------------------- Init Auth --------------------
   useEffect(() => {
     const initAuth = async () => {
@@ -134,13 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const adminToken = localStorage.getItem("admin_token");
 
       if (userToken) {
-        try {
-          const res = await userApi.get<{ user: User }>("/user-profile");
-          setUser(res.data.user);
-        } catch {
-          localStorage.removeItem("user_token");
-          sessionStorage.removeItem("user_token");
-        }
+        await refreshUser();
       }
 
       if (adminToken) {
@@ -159,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, admin, loading, loginUser, registerUser, loginAdmin, registerAdmin, logoutUser, logoutAdmin }),
+    () => ({ user, admin, loading, loginUser, registerUser, loginAdmin, registerAdmin, logoutUser, logoutAdmin, refreshUser }),
     [user, admin, loading]
   );
 

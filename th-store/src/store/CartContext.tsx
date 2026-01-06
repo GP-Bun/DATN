@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react'
-import { 
-  getCart, 
-  addToCart as apiAdd, 
-  updateCartItem as apiUpdate, 
-  removeCartItem as apiRemove, 
-  clearCart as apiClear 
+import {
+  getCart,
+  addToCart as apiAdd,
+  updateCartItem as apiUpdate,
+  removeCartItem as apiRemove,
+  clearCart as apiClear
 } from '../api/cart.api'
 
-export type CartItem = { 
+export type CartItem = {
   id: string
   product_id: number
   name: string
@@ -16,11 +16,12 @@ export type CartItem = {
   quantity: number
   color?: string
   size?: string
+  stock: number
 }
 
 type CartContextValue = {
   items: CartItem[]
-  addToCart: (productId: number, quantity?: number, color?: string | null, size?: string | null, variantId?: number | null) => Promise<void>
+  addToCart: (productId: number, quantity?: number, variantId?: number | null) => Promise<void>
   updateCartItem: (itemId: number, quantity: number) => Promise<void>
   removeCartItem: (itemId: number) => Promise<void>
   clearCart: () => Promise<void>
@@ -55,19 +56,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           name: item.product?.name || item.name,
           price: item.price, // Sử dụng price từ cart_item (có thể khác product.price nếu có variant)
           // Ưu tiên: image -> thumbnail_url -> thumbnail -> images[0]
-          image: item.product?.image || 
-                 item.product?.thumbnail_url || 
-                 (item.product?.thumbnail ? `http://127.0.0.1:8000/storage/${item.product.thumbnail}` : null) ||
-                 (item.product?.images && item.product.images.length > 0 
-                   ? (item.product.images[0].startsWith('http') 
-                       ? item.product.images[0] 
-                       : `http://127.0.0.1:8000/storage/${item.product.images[0]}`)
-                   : null) ||
-                 item.image ||
-                 null,
+          image: item.product?.image ||
+            item.product?.thumbnail_url ||
+            (item.product?.thumbnail ? `http://127.0.0.1:8000/storage/${item.product.thumbnail}` : null) ||
+            (item.product?.images && item.product.images.length > 0
+              ? (item.product.images[0].startsWith('http')
+                ? item.product.images[0]
+                : `http://127.0.0.1:8000/storage/${item.product.images[0]}`)
+              : null) ||
+            item.image ||
+            null,
           quantity: item.quantity,
           color: item.variant?.color?.name || item.color || null,
-          size: item.variant?.size?.value || item.size || null
+          size: item.variant?.size?.value || item.size || null,
+          stock: item.variant ? (item.variant.stock ?? 0) : (item.product?.stock ?? 0)
         }))
       )
     } catch (e) {
@@ -81,7 +83,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // 🔥 Thêm vào giỏ hàng (backend)
-  const addToCart = async (productId: number, quantity = 1, color?: string | null, size?: string | null, variantId?: number | null) => {
+  const addToCart = async (productId: number, quantity = 1, variantId?: number | null) => {
     await apiAdd(productId, quantity, variantId || undefined)
     await reloadCart()
   }

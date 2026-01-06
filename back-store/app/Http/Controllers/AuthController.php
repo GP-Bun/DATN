@@ -115,22 +115,26 @@ class AuthController extends Controller
     // Cập nhật profile
     public function updateProfile(Request $request)
     {
+        $user = $request->user();
         $request->validate([
             'name'  => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ], [
             'name.string' => 'Tên phải là chuỗi ký tự',
             'name.max'    => 'Tên không được vượt quá 255 ký tự',
             'phone.string'=> 'Số điện thoại phải là chuỗi ký tự',
             'phone.max'   => 'Số điện thoại không được vượt quá 20 ký tự',
+            'email.required' => 'Email không được để trống',
+            'email.email'    => 'Email không đúng định dạng',
+            'email.unique'   => 'Email này đã được sử dụng',
             'avatar.image' => 'Avatar phải là file ảnh',
             'avatar.mimes' => 'Avatar phải là định dạng: jpeg, png, jpg, gif',
             'avatar.max'   => 'Avatar không được vượt quá 2MB',
         ]);
 
-        $user = $request->user();
-        $updateData = $request->only('name', 'phone');
+        $updateData = $request->only('name', 'phone', 'email');
 
         // Xử lý upload avatar
         if ($request->hasFile('avatar')) {

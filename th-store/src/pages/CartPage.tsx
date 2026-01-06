@@ -371,39 +371,67 @@ export default function CartPage() {
                     >
                       −
                     </button>
-                    <span style={{
-                      minWidth: "40px",
-                      textAlign: "center",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      color: "#1f2937"
-                    }}>
-                      {item.quantity}
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      min="1"
+                      max={item.stock}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) {
+                          const sanitizedVal = Math.max(1, Math.min(val, item.stock));
+                          handleUpdateQuantity(Number(item.id), sanitizedVal);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (isNaN(val) || val < 1) {
+                          handleUpdateQuantity(Number(item.id), 1);
+                        }
+                      }}
+                      style={{
+                        width: "50px",
+                        textAlign: "center",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1f2937",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "4px",
+                        padding: "4px"
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                      (Tối đa: {item.stock})
                     </span>
                     <button
                       onClick={() => handleUpdateQuantity(Number(item.id), item.quantity + 1)}
+                      disabled={item.quantity >= item.stock}
                       style={{
                         width: "32px",
                         height: "32px",
                         border: "none",
                         background: "white",
                         borderRadius: "6px",
-                        cursor: "pointer",
+                        cursor: item.quantity >= item.stock ? "not-allowed" : "pointer",
                         fontSize: "18px",
                         fontWeight: "600",
-                        color: "#6b7280",
+                        color: item.quantity >= item.stock ? "#d1d5db" : "#6b7280",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s"
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#dbeafe";
-                        e.currentTarget.style.color = "#2563eb";
+                        if (item.quantity < item.stock) {
+                          e.currentTarget.style.background = "#dbeafe";
+                          e.currentTarget.style.color = "#2563eb";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "white";
-                        e.currentTarget.style.color = "#6b7280";
+                        if (item.quantity < item.stock) {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.style.color = "#6b7280";
+                        }
                       }}
                     >
                       +

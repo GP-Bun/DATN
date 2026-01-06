@@ -213,10 +213,14 @@ class CheckoutController extends Controller
             ]);
 
             // Xóa các sản phẩm đã chọn khỏi giỏ hàng
-            if ($request->has('cart_item_ids') && !empty($request->cart_item_ids)) {
-                $cart->items()->whereIn('id', $request->cart_item_ids)->delete();
-            } else {
-                $cart->items()->delete();
+            // CHỈ XOÁ NGAY NẾU LÀ COD. Với chuyển khoản, sản phẩm sẽ ở lại giỏ cho đến khi thanh toán thành công 
+            // hoặc người dùng chủ động xoá, để tránh mất hàng khi chưa thanh toán xong.
+            if ($request->payment_method === 'cod') {
+                if ($request->has('cart_item_ids') && !empty($request->cart_item_ids)) {
+                    $cart->items()->whereIn('id', $request->cart_item_ids)->delete();
+                } else {
+                    $cart->items()->delete();
+                }
             }
 
             DB::commit();
