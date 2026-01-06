@@ -8,6 +8,28 @@ import type { CheckoutPayload } from '../api/checkout.api'
 import { formatPrice } from '../utils/formatPrice'
 import { geoApi } from '../api/geo.api'
 import type { Province, District, Ward } from '../api/geo.api'
+import api from '../api/api'
+
+interface Address {
+  id: number
+  receiver_name: string
+  receiver_phone: string
+  line1: string
+  province: {
+    id: number
+    name: string
+  }
+  district: {
+    id: number
+    name: string
+  }
+  ward: {
+    id: number
+    name: string
+  }
+  zip?: string
+  is_default: boolean
+}
 
 
 export default function CheckoutPage() {
@@ -36,6 +58,11 @@ export default function CheckoutPage() {
   const [qrData, setQrData] = useState<any>(null)
   const [currentOrder, setCurrentOrder] = useState<any>(null)
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
+
+  // Address selection state
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
+  const [addressType, setAddressType] = useState<'saved' | 'new'>(user ? 'saved' : 'new')
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null)
 
   // Geo State
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -68,6 +95,32 @@ export default function CheckoutPage() {
       setCouponCode(savedCouponCode);
     }
   }, []);
+
+  // Fetch Saved Addresses
+  useEffect(() => {
+    if (user) {
+      const fetchAddresses = async () => {
+        try {
+          const res = await api.get('/addresses')
+          const list = res.data.data || res.data
+          setSavedAddresses(list)
+
+          // Auto select default address
+          const defaultAddr = list.find((a: Address) => a.is_default) || list[0]
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr.id)
+            applySelectedAddress(defaultAddr)
+          } else {
+            setAddressType('new')
+          }
+        } catch (error) {
+          console.error("Failed to fetch addresses:", error)
+          setAddressType('new')
+        }
+      }
+      fetchAddresses()
+    }
+  }, [user])
 
   // Fetch Provinces
   useEffect(() => {
@@ -268,6 +321,53 @@ export default function CheckoutPage() {
     }
   }
 
+  const applySelectedAddress = (addr: Address) => {
+    setFormData(prev => ({
+      ...prev,
+      fullName: addr.receiver_name,
+      phone: addr.receiver_phone,
+      address: addr.line1,
+      province: addr.province.name,
+      city: addr.district.name
+    }))
+    setSelectedProvince({ id: addr.province.id, name: addr.province.name } as Province)
+    setSelectedDistrict({ id: addr.district.id, name: addr.district.name } as District)
+    setSelectedWard({ id: addr.ward.id, name: addr.ward.name } as Ward)
+  }
+
+  const handleAddressTypeChange = (type: 'saved' | 'new') => {
+    setAddressType(type)
+    if (type === 'new') {
+      setSelectedAddressId(null)
+      setFormData({
+        ...formData,
+        fullName: user?.name || '',
+        phone: '',
+        address: '',
+        province: '',
+        city: '',
+      })
+      setSelectedProvince(null)
+      setSelectedDistrict(null)
+      setSelectedWard(null)
+    } else {
+      const addr = savedAddresses.find(a => a.id === selectedAddressId) || savedAddresses[0]
+      if (addr) {
+        setSelectedAddressId(addr.id)
+        applySelectedAddress(addr)
+      }
+    }
+  }
+
+  const handleSavedAddressChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value)
+    setSelectedAddressId(id)
+    const addr = savedAddresses.find(a => a.id === id)
+    if (addr) {
+      applySelectedAddress(addr)
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -301,7 +401,24 @@ export default function CheckoutPage() {
             clearInterval(pollInterval);
             setIsCheckingPayment(false);
 
-            // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
+            // Xóa giỏ hàng trên server khi thanh toán thành công
+            try {
+              // Nếu dùng selective checkout, ta xoá các item đã chọn. 
+              // Ở đây đơn giản nhất là clear toàn bộ hoặc gọi delete từng item.
+              // Vì backend không có endpoint xoá list ID, ta dùng clear() hoặc delete cho đơn giản.
+              const cartRes = await fetch(`http://127.0.0.1:8000/api/cart`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json'
+                }
+              });
+              if (!cartRes.ok) console.error('Failed to clear cart after payment');
+            } catch (cartErr) {
+              console.error('Error clearing cart:', cartErr);
+            }
+
+            // reloadCart sẽ lấy giỏ hàng mới
             await reloadCart()
             localStorage.removeItem("applied_coupon");
             localStorage.removeItem("coupon_discount");
@@ -402,7 +519,55 @@ export default function CheckoutPage() {
           </h2>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div>
+            {/* Address Selection */}
+            {user && savedAddresses.length > 0 && (
+              <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "8px" }}>
+                <div style={{ display: "flex", gap: "20px", marginBottom: "16px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "15px", fontWeight: "600" }}>
+                    <input
+                      type="radio"
+                      name="addressType"
+                      checked={addressType === 'saved'}
+                      onChange={() => handleAddressTypeChange('saved')}
+                    />
+                    Dùng địa chỉ đã lưu
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "15px", fontWeight: "600" }}>
+                    <input
+                      type="radio"
+                      name="addressType"
+                      checked={addressType === 'new'}
+                      onChange={() => handleAddressTypeChange('new')}
+                    />
+                    Nhập địa chỉ mới
+                  </label>
+                </div>
+
+                {addressType === 'saved' && (
+                  <select
+                    value={selectedAddressId || ''}
+                    onChange={handleSavedAddressChange}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #cbd5e1",
+                      fontSize: "15px"
+                    }}
+                  >
+                    {savedAddresses.map(addr => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.receiver_name} - {addr.receiver_phone} ({addr.line1}, {addr.ward.name}, {addr.district.name}, {addr.province.name})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            <div style={{
+              display: addressType === 'saved' ? 'none' : 'block'
+            }}>
               <label style={{
                 display: "block",
                 marginBottom: "8px",
@@ -417,7 +582,7 @@ export default function CheckoutPage() {
                 placeholder="Nhập họ và tên"
                 value={formData.fullName}
                 onChange={handleChange}
-                required
+                required={addressType === 'new'}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -439,7 +604,9 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div>
+            <div style={{
+              display: addressType === 'saved' ? 'none' : 'block'
+            }}>
               <label style={{
                 display: "block",
                 marginBottom: "8px",
@@ -455,7 +622,7 @@ export default function CheckoutPage() {
                 placeholder="Nhập email"
                 value={formData.email}
                 onChange={handleChange}
-                required
+                required={addressType === 'new'}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -477,7 +644,9 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div>
+            <div style={{
+              display: addressType === 'saved' ? 'none' : 'block'
+            }}>
               <label style={{
                 display: "block",
                 marginBottom: "8px",
@@ -492,7 +661,7 @@ export default function CheckoutPage() {
                 placeholder="Nhập số điện thoại"
                 value={formData.phone}
                 onChange={handleChange}
-                required
+                required={addressType === 'new'}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -514,7 +683,9 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div>
+            <div style={{
+              display: addressType === 'saved' ? 'none' : 'block'
+            }}>
               <label style={{
                 display: "block",
                 marginBottom: "8px",
@@ -522,14 +693,14 @@ export default function CheckoutPage() {
                 fontWeight: "600",
                 color: "#374151"
               }}>
-                Địa chỉ *
+                Địa chỉ chi tiết *
               </label>
               <input
                 name="address"
-                placeholder="Nhập địa chỉ"
+                placeholder="Số nhà, tên đường..."
                 value={formData.address}
                 onChange={handleChange}
-                required
+                required={addressType === 'new'}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -551,7 +722,11 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{
+              display: addressType === 'saved' ? 'none' : 'grid',
+              gridTemplateColumns: "1fr",
+              gap: "20px"
+            }}>
               <div>
                 <label style={{
                   display: "block",
@@ -562,21 +737,11 @@ export default function CheckoutPage() {
                 }}>
                   Tỉnh/Thành phố *
                 </label>
-              </div>
-              <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                </label>
                 <select
                   name="province"
                   value={selectedProvince?.id || ''}
                   onChange={handleProvinceChange}
-                  required
+                  required={addressType === 'new'}
                   style={{
                     width: "100%",
                     padding: "12px 16px",
@@ -605,85 +770,87 @@ export default function CheckoutPage() {
                 </select>
               </div>
 
-              <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                  Quận/Huyện *
-                </label>
-                <select
-                  name="city"
-                  value={selectedDistrict?.id || ''}
-                  onChange={handleDistrictChange}
-                  required
-                  disabled={!selectedProvince}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    background: !selectedProvince ? "#f3f4f6" : "white",
-                    cursor: !selectedProvince ? "not-allowed" : "pointer",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box"
-                  }}
-                  onFocus={(e) => {
-                    if (selectedProvince) {
-                      e.currentTarget.style.borderColor = "#3b82f6";
-                      e.currentTarget.style.outline = "none";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#d1d5db";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="">-- Chọn Quận / Huyện --</option>
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div>
+                  <label style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151"
+                  }}>
+                    Quận/Huyện *
+                  </label>
+                  <select
+                    name="city"
+                    value={selectedDistrict?.id || ''}
+                    onChange={handleDistrictChange}
+                    required={addressType === 'new'}
+                    disabled={!selectedProvince}
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "8px",
+                      fontSize: "16px",
+                      background: !selectedProvince ? "#f3f4f6" : "white",
+                      cursor: !selectedProvince ? "not-allowed" : "pointer",
+                      transition: "all 0.2s",
+                      boxSizing: "border-box"
+                    }}
+                    onFocus={(e) => {
+                      if (selectedProvince) {
+                        e.currentTarget.style.borderColor = "#3b82f6";
+                        e.currentTarget.style.outline = "none";
+                        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      }
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#d1d5db";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    <option value="">-- Chọn Quận / Huyện --</option>
+                    {districts.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151"
-                }}>
-                  Phường/Xã *
-                </label>
-                <select
-                  name="ward"
-                  value={selectedWard?.id || ''}
-                  onChange={handleWardChange}
-                  required
-                  disabled={!selectedDistrict}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "8px",
-                    fontSize: "16px",
-                    background: !selectedDistrict ? "#f3f4f6" : "white",
-                    cursor: !selectedDistrict ? "not-allowed" : "pointer",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box"
-                  }}
-                >
-                  <option value="">-- Chọn Phường / Xã --</option>
-                  {wards.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </select>
+                <div>
+                  <label style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151"
+                  }}>
+                    Phường/Xã *
+                  </label>
+                  <select
+                    name="ward"
+                    value={selectedWard?.id || ''}
+                    onChange={handleWardChange}
+                    required={addressType === 'new'}
+                    disabled={!selectedDistrict}
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "8px",
+                      fontSize: "16px",
+                      background: !selectedDistrict ? "#f3f4f6" : "white",
+                      cursor: !selectedDistrict ? "not-allowed" : "pointer",
+                      transition: "all 0.2s",
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    <option value="">-- Chọn Phường / Xã --</option>
+                    {wards.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
