@@ -20,6 +20,9 @@ use App\Http\Controllers\Api\Geo\ProvinceController;
 use App\Http\Controllers\Api\Geo\DistrictController;
 use App\Http\Controllers\Api\Geo\WardController;
 use App\Models\Province;
+use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\ConversationController;
+
 
 
 // Route::get('/home', [HomeController::class, 'index']);
@@ -116,13 +119,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);       // Lấy danh sách đơn hàng của user
     Route::get('/orders/{order}', [OrderController::class, 'show']); // Xem chi tiết đơn hàng
-    Route::post('/orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment']); // ✅ Xác nhận thanh toán
+    Route::post('/orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment']); //  Xác nhận thanh toán
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']); // Hủy đơn hàng
+    // Chat API
+    Route::get('/messages', [MessageController::class, 'index']);   // Lấy danh sách tin nhắn
+    Route::post('/messages', [MessageController::class, 'store']); // Gửi tin nhắn
+
+    // Hội thoại của user
+    Route::get('/conversations', [ConversationController::class, 'index']);
 });
 
 // ADMIN — quản lý đơn hàng
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus']); // Cập nhật trạng thái
     Route::delete('/orders/{order}', [OrderController::class, 'destroy']);          // Xóa đơn hàng
+
+    // Admin quản lý chat
+    Route::get('/admin/messages', [MessageController::class, 'adminIndex']); // Lấy tất cả tin nhắn
+
+    // Admin quản lý hội thoại
+    Route::get('/admin/conversations', [ConversationController::class, 'adminIndex']);
+    Route::post('/admin/conversations/{id}/read', [ConversationController::class, 'markAsRead']);
 });
 
 // COLORS

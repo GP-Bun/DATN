@@ -150,11 +150,11 @@
             <i class="bi bi-people"></i> Người dùng
         </a>
 
-        <!-- Thêm quản lý tài khoản -->
+        {{-- <!-- Thêm quản lý tài khoản -->
         <a href="{{ route('admin.accounts.index') }}"
             class="{{ request()->routeIs('admin.accounts.*') ? 'active' : '' }}">
             <i class="bi bi-person-badge"></i> Tài khoản
-        </a>
+        </a> --}}
 
         <!-- Thêm quản lý đơn hàng -->
         <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">

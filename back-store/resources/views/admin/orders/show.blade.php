@@ -204,8 +204,7 @@
                     <div class="card-body">
                         <p><strong>Người nhận:</strong> {{ $order->address->receiver_name }}</p>
                         <p><strong>SĐT:</strong> {{ $order->address->receiver_phone }}</p>
-                        <p><strong>Địa chỉ:</strong> {{ $order->address->line1 }}, {{ $order->address->city }},
-                            {{ $order->address->province }}</p>
+                        <p><strong>Địa chỉ:</strong> {{ $order->address->full_address }}</p>
                         <p><strong>Mã bưu điện:</strong> {{ $order->address->zip ?? 'Không có' }}</p>
                     </div>
                 </div>

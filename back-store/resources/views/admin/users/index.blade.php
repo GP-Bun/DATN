@@ -3,7 +3,7 @@
 @section('content')
     <div class="p-4 bg-white rounded shadow-sm">
         <h4>Danh sách người dùng</h4>
-        <a href="{{ route('admin.users.create') }}" class="btn btn-success mb-3">+ Thêm mới</a>
+        {{-- <a href="{{ route('admin.users.create') }}" class="btn btn-success mb-3">+ Thêm mới</a> --}}
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif

@@ -16,7 +16,7 @@ class ProductController extends Controller
     // ===== DANH SÁCH =====
     public function index()
     {
-        $products = Product::with('category')->paginate(10);
+        $products = Product::with('category')->latest()->paginate(10);
         $trashCount = Product::onlyTrashed()->count();
 
         return view('admin.products.index', compact('products', 'trashCount'));
@@ -297,7 +297,7 @@ class ProductController extends Controller
 
     public function trash()
     {
-        $products = Product::onlyTrashed()->with('category')->paginate(10);
+        $products = Product::onlyTrashed()->with('category')->latest('deleted_at')->paginate(10);
         return view('admin.products.trash', compact('products'));
     }
 
