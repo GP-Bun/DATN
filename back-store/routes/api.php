@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Geo\WardController;
 use App\Models\Province;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ChatBotController;
 
 
 
@@ -113,6 +114,9 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
 
 // CHECKOUT API
 Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('auth:sanctum');
+
+// CHATBOT API
+Route::post('/chatbot', [ChatBotController::class, 'chat']);
 
 // USER — cần đăng nhập
 Route::middleware('auth:sanctum')->group(function () {

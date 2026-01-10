@@ -7,6 +7,8 @@ import {
   type Review,
   type ReviewStats,
 } from "../../api/adminReviews.api";
+import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 
 const Reviews = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -53,7 +55,7 @@ const Reviews = () => {
       });
     } catch (error: any) {
       console.error("Lỗi khi tải reviews:", error);
-      alert(error.response?.data?.message || "Không thể tải danh sách reviews");
+      toast.error(error.response?.data?.message || "Không thể tải danh sách reviews");
     } finally {
       setLoading(false);
     }
@@ -76,36 +78,51 @@ const Reviews = () => {
 
   // Handle toggle status
   const handleToggleStatus = async (review: Review) => {
-    if (!window.confirm(`Bạn có chắc muốn ${review.status ? "ẩn" : "hiển thị"} review này?`)) {
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Xác nhận?',
+      text: `Bạn có chắc muốn ${review.status ? "ẩn" : "hiển thị"} review này?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       const newStatus = review.status === 1 ? 0 : 1;
       await updateReviewStatus(review.id, newStatus as 0 | 1);
-      alert("Cập nhật trạng thái thành công!");
+      toast.success("Cập nhật trạng thái thành công!");
       loadReviews();
       loadStats();
     } catch (error: any) {
       console.error("Lỗi khi cập nhật trạng thái:", error);
-      alert(error.response?.data?.message || "Không thể cập nhật trạng thái");
+      toast.error(error.response?.data?.message || "Không thể cập nhật trạng thái");
     }
   };
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Bạn có chắc muốn xóa review này? Hành động này không thể hoàn tác!")) {
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Xóa đánh giá?',
+      text: "Bạn có chắc muốn xóa review này? Hành động này không thể hoàn tác!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Xóa ngay',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       await deleteReview(id);
-      alert("Xóa review thành công!");
+      toast.success("Xóa review thành công!");
       loadReviews();
       loadStats();
     } catch (error: any) {
       console.error("Lỗi khi xóa review:", error);
-      alert(error.response?.data?.message || "Không thể xóa review");
+      toast.error(error.response?.data?.message || "Không thể xóa review");
     }
   };
 

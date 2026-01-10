@@ -3,6 +3,8 @@ import { useCart } from "../store/CartContext";
 import { useState, useEffect } from "react";
 import { applyCoupon, getAvailableCoupons, type Coupon } from "../api/coupon.api";
 import { formatPrice } from "../utils/formatPrice";
+import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 
 export default function CartPage() {
   const { items, updateCartItem, removeCartItem } = useCart();
@@ -91,15 +93,16 @@ export default function CartPage() {
         localStorage.setItem("applied_coupon", JSON.stringify(result.coupon));
         localStorage.setItem("coupon_discount", result.discount.toString());
         localStorage.setItem("coupon_code", result.coupon.code);
+        toast.success(`Đã áp dụng mã: ${result.coupon.code}`);
       } else {
         setCouponError(result.message || "Không thể áp dụng voucher này");
-        alert(result.message || "Không thể áp dụng voucher này");
+        toast.error(result.message || "Không thể áp dụng voucher này");
       }
     } catch (error: any) {
       console.error("Error applying coupon:", error);
       const errorMessage = error.response?.data?.message || "Có lỗi xảy ra khi áp dụng mã giảm giá";
       setCouponError(errorMessage);
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -137,8 +140,18 @@ export default function CartPage() {
   // Hàm xử lý cập nhật số lượng
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
-      if (window.confirm("Bạn có muốn xóa sản phẩm này khỏi giỏ hàng không?")) {
+      const result = await Swal.fire({
+        title: 'Xóa sản phẩm?',
+        text: "Bạn có muốn xóa sản phẩm này khỏi giỏ hàng không?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+      });
+
+      if (result.isConfirmed) {
         await removeCartItem(itemId);
+        toast.success("Đã xóa sản phẩm");
       }
       return;
     }
@@ -147,8 +160,19 @@ export default function CartPage() {
 
   // Hàm xử lý xóa sản phẩm
   const handleRemoveItem = async (itemId: number) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng không?")) {
+    const result = await Swal.fire({
+      title: 'Xóa sản phẩm?',
+      text: "Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng không?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Xóa ngay',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
       await removeCartItem(itemId);
+      toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     }
   };
 

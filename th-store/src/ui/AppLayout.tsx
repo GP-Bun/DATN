@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import { useCart } from '../store/CartContext'
+import ChatBot from './ChatBot'
 
 export default function AppLayout() {
   const { user, logoutUser } = useAuth()
@@ -115,6 +116,7 @@ export default function AppLayout() {
           <p style={{ color: '#9ca3af', fontSize: '14px' }}>© {new Date().getFullYear()} TH Sneaker Store. All rights reserved.</p>
         </div>
       </footer>
+      <ChatBot />
     </div>
   )
 }

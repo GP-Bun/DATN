@@ -248,20 +248,37 @@ class OrderController extends Controller
             return response()->json(['message' => 'Chỉ có thể hủy đơn hàng khi đang chờ xử lý'], 403);
         }
 
-        $order->update([
-            'order_status' => 'cancelled'
-        ]);
+        return DB::transaction(function () use ($order) {
+            // Hoàn lại số lượng sản phẩm/biến thể
+            foreach ($order->items as $item) {
+                if ($item->variant_id) {
+                    $variant = ProductVariant::find($item->variant_id);
+                    if ($variant) {
+                        $variant->increment('stock', $item->quantity);
+                    }
+                } else {
+                    $product = Product::find($item->product_id);
+                    if ($product) {
+                        $product->increment('stock', $item->quantity);
+                    }
+                }
+            }
 
-        Activity::create([
-            'user_id'    => $order->user_id,
-            'action'     => 'cancel_order',
-            'description' => 'Người dùng đã hủy đơn hàng #' . $order->id,
-        ]);
+            $order->update([
+                'order_status' => 'cancelled'
+            ]);
 
-        return response()->json([
-            'message' => 'Đơn hàng đã được hủy thành công',
-            'order'   => $order
-        ]);
+            Activity::create([
+                'user_id'    => $order->user_id,
+                'action'     => 'cancel_order',
+                'description' => 'Người dùng đã hủy đơn hàng #' . $order->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Đơn hàng đã được hủy thành công và số lượng sản phẩm đã được hoàn lại',
+                'order'   => $order
+            ]);
+        });
     }
 
 

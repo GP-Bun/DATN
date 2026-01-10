@@ -4,6 +4,8 @@ import { getProductDetail } from "../api/productDetail.api";
 import { useCart } from "../store/CartContext";
 import { useAuth } from "../store/AuthContext";
 import { getProductReviews, createReview, type Review } from "../api/review.api";
+import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -101,23 +103,31 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     // Kiểm tra user đã đăng nhập chưa
     if (!user) {
-      const confirmLogin = confirm("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng. Bạn có muốn đăng nhập ngay không?");
-      if (confirmLogin) {
-        navigate("/dang-nhap");
-      }
+      Swal.fire({
+        title: "Bạn cần đăng nhập",
+        text: "Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng. Bạn có muốn đăng nhập ngay không?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/dang-nhap");
+        }
+      });
       return;
     }
 
     if (!selectedVariant) {
-      alert("Vui lòng chọn màu và kích thước hợp lệ!");
+      toast.error("Vui lòng chọn màu và kích thước hợp lệ!");
       return;
     }
     if (!product) {
-      alert("Không tìm thấy sản phẩm!");
+      toast.error("Không tìm thấy sản phẩm!");
       return;
     }
     if (quantity > (selectedVariant.stock ?? 0)) {
-      alert("Số lượng vượt quá tồn kho!");
+      toast.error("Số lượng vượt quá tồn kho!");
       return;
     }
 
@@ -131,19 +141,26 @@ export default function ProductDetailPage() {
       );
       // Không reload trang, chỉ hiển thị thông báo
       // Giỏ hàng sẽ tự động cập nhật qua CartContext
-      alert("🛒 Đã thêm vào giỏ hàng!");
+      toast.success("🛒 Đã thêm vào giỏ hàng!");
     } catch (err: any) {
       console.error("Lỗi thêm giỏ hàng:", err);
       const errorMessage = err?.response?.data?.message || "Lỗi khi thêm vào giỏ!";
 
-      // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
       if (errorMessage.includes("Unauthenticated") || err?.response?.status === 401) {
-        const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn. Bạn có muốn đăng nhập lại không?");
-        if (confirmLogin) {
-          navigate("/dang-nhap");
-        }
+        Swal.fire({
+          title: "Phiên đăng nhập hết hạn",
+          text: "Phiên đăng nhập của bạn đã hết hạn. Bạn có muốn đăng nhập lại không?",
+          icon: "error",
+          showCancelButton: true,
+          confirmButtonText: "Đăng nhập lại",
+          cancelButtonText: "Hủy"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/dang-nhap");
+          }
+        });
       } else {
-        alert(errorMessage);
+        toast.error(errorMessage);
       }
     } finally {
       setIsAdding(false);
@@ -151,27 +168,31 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
-    // Kiểm tra user đã đăng nhập chưa
     if (!user) {
-
-
-      const confirmLogin = confirm("Bạn cần đăng nhập để mua hàng. Bạn có muốn đăng nhập ngay không?");
-      if (confirmLogin) {
-        navigate("/dang-nhap");
-      }
+      Swal.fire({
+        title: "Bạn cần đăng nhập",
+        text: "Bạn cần đăng nhập để mua hàng. Bạn có muốn đăng nhập ngay không?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/dang-nhap");
+        }
+      });
       return;
     }
-
     if (!selectedVariant) {
-      alert("Vui lòng chọn màu và kích thước hợp lệ!");
+      toast.error("Vui lòng chọn màu và kích thước hợp lệ!");
       return;
     }
     if (!product) {
-      alert("Không tìm thấy sản phẩm!");
+      toast.error("Không tìm thấy sản phẩm!");
       return;
     }
     if (quantity > (selectedVariant.stock ?? 0)) {
-      alert("Số lượng vượt quá tồn kho!");
+      toast.error("Số lượng vượt quá tồn kho!");
       return;
     }
 
@@ -192,7 +213,7 @@ export default function ProductDetailPage() {
       navigate('/thanh-toan', { state: { buyNowItem } });
     } catch (error) {
       console.error("Error in handleBuyNow:", error);
-      alert("Có lỗi xảy ra khi chuyển hướng. Vui lòng thử lại.");
+      toast.error("Có lỗi xảy ra khi chuyển hướng. Vui lòng thử lại.");
     }
 
   };
@@ -204,10 +225,18 @@ export default function ProductDetailPage() {
 
     // Kiểm tra user đã đăng nhập chưa
     if (!user) {
-      const confirmLogin = confirm("Bạn cần đăng nhập để đánh giá sản phẩm. Bạn có muốn đăng nhập ngay không?");
-      if (confirmLogin) {
-        navigate("/dang-nhap");
-      }
+      Swal.fire({
+        title: "Cần đăng nhập",
+        text: "Bạn cần đăng nhập để đánh giá sản phẩm. Bạn có muốn đăng nhập ngay không?",
+        icon: "info",
+        showCancelButton: true,
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/dang-nhap");
+        }
+      });
       return;
     }
 
@@ -233,19 +262,27 @@ export default function ProductDetailPage() {
         comment: "",
       });
       setShowReviewForm(false);
-      alert("Cảm ơn bạn đã đánh giá!");
+      toast.success("Cảm ơn bạn đã đánh giá!");
     } catch (error: any) {
       console.error("Lỗi khi thêm đánh giá:", error);
       const errorMessage = error.response?.data?.message || "Có lỗi xảy ra khi thêm đánh giá";
 
       // Nếu lỗi Unauthenticated, yêu cầu đăng nhập lại
       if (errorMessage.includes("đăng nhập") || error.response?.status === 401 || error.response?.status === 403) {
-        const confirmLogin = confirm("Phiên đăng nhập của bạn đã hết hạn hoặc bạn chưa đăng nhập. Bạn có muốn đăng nhập lại không?");
-        if (confirmLogin) {
-          navigate("/dang-nhap");
-        }
+        Swal.fire({
+          title: "Thông báo",
+          text: "Phiên đăng nhập của bạn đã hết hạn hoặc bạn chưa đăng nhập. Bạn có muốn đăng nhập lại không?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Đăng nhập",
+          cancelButtonText: "Hủy"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/dang-nhap");
+          }
+        });
       } else {
-        alert(errorMessage);
+        toast.error(errorMessage);
       }
     } finally {
       setSubmittingReview(false);

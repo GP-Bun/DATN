@@ -9,6 +9,8 @@ import { formatPrice } from '../utils/formatPrice'
 import { geoApi } from '../api/geo.api'
 import type { Province, District, Ward } from '../api/geo.api'
 import api from '../api/api'
+import { toast } from 'react-hot-toast'
+import Swal from 'sweetalert2'
 
 interface Address {
   id: number
@@ -143,8 +145,11 @@ export default function CheckoutPage() {
           const data = await geoApi.getDistricts(selectedProvince.id);
           setDistricts(data);
           setWards([]);
-          setSelectedDistrict(null);
-          setSelectedWard(null);
+          // Only clear if not switching from saved address or if the province actually changed manually
+          if (addressType === 'new') {
+            setSelectedDistrict(null);
+            setSelectedWard(null);
+          }
         } catch (error) {
           console.error("Failed to fetch districts:", error);
         }
@@ -163,7 +168,9 @@ export default function CheckoutPage() {
         try {
           const data = await geoApi.getWards(selectedDistrict.id);
           setWards(data);
-          setSelectedWard(null);
+          if (addressType === 'new') {
+            setSelectedWard(null);
+          }
         } catch (error) {
           console.error("Failed to fetch wards:", error);
         }
@@ -199,11 +206,12 @@ export default function CheckoutPage() {
 
     // Validate form
     if (!formData.fullName || !formData.phone || !formData.address || !formData.city) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc!')
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc!')
       return
     }
 
     const checkoutData: CheckoutPayload = {
+      address_id: (addressType === 'saved' && selectedAddressId) ? selectedAddressId : undefined,
       full_name: formData.fullName.trim(),
       phone: formData.phone.trim(),
       address: formData.address.trim(),
@@ -235,13 +243,22 @@ export default function CheckoutPage() {
       if (buyNowItem) {
         // Xử lý tạo đơn hàng trực tiếp
         const orderData = {
-          ...checkoutData,
           items: [{
             product_id: buyNowItem.product_id,
             variant_id: buyNowItem.variant_id,
             quantity: buyNowItem.quantity,
             price: buyNowItem.price
           }],
+          address: {
+            receiver_name: checkoutData.full_name,
+            receiver_phone: checkoutData.phone,
+            line1: checkoutData.address,
+            province_id: checkoutData.province_id,
+            district_id: checkoutData.district_id,
+            ward_id: checkoutData.ward_id,
+          },
+          address_id: checkoutData.address_id,
+          payment_method: checkoutData.payment_method,
           total_price: checkoutTotal
         };
         console.log('Creating direct order:', orderData);
@@ -315,7 +332,19 @@ export default function CheckoutPage() {
       }
 
       // Hiển thị lỗi chi tiết hơn
-      alert(`Lỗi: ${errorMessage}\n\nVui lòng kiểm tra:\n- Thông tin đã điền đầy đủ chưa\n- Sản phẩm còn tồn kho không\n- Kết nối mạng`)
+      Swal.fire({
+        title: 'Lỗi đặt hàng',
+        html: `<div style="text-align: left; font-size: 14px;">
+                <p><strong>Chi tiết:</strong> ${errorMessage}</p>
+                <p>Vui lòng kiểm tra:</p>
+                <ul>
+                  <li>Thông tin đã điền đầy đủ chưa</li>
+                  <li>Sản phẩm còn tồn kho không</li>
+                  <li>Kết nối mạng</li>
+                </ul>
+               </div>`,
+        icon: 'error'
+      })
     } finally {
       setIsSubmitting(false)
     }

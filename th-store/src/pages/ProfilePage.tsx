@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/api'
 import { geoApi } from '../api/geo.api'
 import type { Province, District, Ward } from '../api/geo.api'
+import { toast } from 'react-hot-toast'
+import Swal from 'sweetalert2'
 
 interface Address {
   id: number
@@ -144,7 +146,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        alert('Kích thước ảnh không được vượt quá 2MB')
+        toast.error('Kích thước ảnh không được vượt quá 2MB')
         return
       }
       const reader = new FileReader()
@@ -173,13 +175,13 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      alert('Cập nhật thông tin thành công!')
+      toast.success('Cập nhật thông tin thành công!')
       setIsEditingProfile(false)
       await refreshUser()
       await loadUserProfile()
     } catch (err: any) {
       console.error(err)
-      alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin')
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin')
     } finally {
       setLoading(false)
     }
@@ -188,17 +190,17 @@ export default function ProfilePage() {
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!addressData.province_id || !addressData.district_id || !addressData.ward_id) {
-      alert('Vui lòng chọn đầy đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã')
+      toast.error('Vui lòng chọn đầy đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã')
       return
     }
     setLoading(true)
     try {
       if (editingAddressId) {
         await api.put(`/addresses/${editingAddressId}`, addressData)
-        alert('Cập nhật địa chỉ thành công!')
+        toast.success('Cập nhật địa chỉ thành công!')
       } else {
         await api.post('/addresses', addressData)
-        alert('Thêm địa chỉ thành công!')
+        toast.success('Thêm địa chỉ thành công!')
       }
       setIsEditingAddress(false)
       setEditingAddressId(null)
@@ -215,7 +217,7 @@ export default function ProfilePage() {
       await loadAddresses()
     } catch (err: any) {
       console.error(err)
-      alert(err.response?.data?.message || 'Có lỗi xảy ra')
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra')
     } finally {
       setLoading(false)
     }
@@ -237,14 +239,25 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAddress = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return
-    try {
-      await api.delete(`/addresses/${id}`)
-      alert('Xóa địa chỉ thành công!')
-      await loadAddresses()
-    } catch (err: any) {
-      console.error(err)
-      alert(err.response?.data?.message || 'Có lỗi xảy ra')
+    const result = await Swal.fire({
+      title: 'Xóa địa chỉ?',
+      text: "Bạn có chắc chắn muốn xóa địa chỉ này không?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Đồng ý xóa',
+      cancelButtonText: 'Hủy'
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await api.delete(`/addresses/${id}`)
+        toast.success('Xóa địa chỉ thành công!')
+        await loadAddresses()
+      } catch (err: any) {
+        console.error(err)
+        toast.error(err.response?.data?.message || 'Có lỗi xảy ra')
+      }
     }
   }
 

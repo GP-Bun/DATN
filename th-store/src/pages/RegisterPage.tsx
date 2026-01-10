@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import { useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 interface FormErrors {
   name?: string[]
@@ -40,11 +41,11 @@ export default function RegisterPage() {
     try {
       // Gọi API register
       await registerUser(name, email, password)
-      alert("Đăng ký thành công! Vui lòng đăng nhập.")
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
       navigate("/dang-nhap")
     } catch (err: any) {
       console.error("Lỗi đăng ký:", err)
-      
+
       // Xử lý lỗi validation từ Laravel
       // Laravel trả về format: {message: "...", errors: {field: ["error1", "error2"]}}
       if (err.response?.data?.errors) {
@@ -88,20 +89,20 @@ export default function RegisterPage() {
 
             <div className="form-group">
               <label htmlFor="name">Họ và tên</label>
-              <input id="name" name="name" type="text" placeholder="Nhập họ và tên của bạn" required className="form-input"/>
+              <input id="name" name="name" type="text" placeholder="Nhập họ và tên của bạn" required className="form-input" />
               {errors.name && Array.isArray(errors.name) && <div className="form-error">{errors.name[0]}</div>}
             </div>
 
             <div className="form-group">
               <label htmlFor="email">Email</label>
-              <input id="email" name="email" type="email" placeholder="Nhập email của bạn" required className="form-input"/>
+              <input id="email" name="email" type="email" placeholder="Nhập email của bạn" required className="form-input" />
               {errors.email && Array.isArray(errors.email) && <div className="form-error">{errors.email[0]}</div>}
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Mật khẩu</label>
               <div className="password-input">
-                <input id="password" name="password" type={showPassword ? 'text':'password'} placeholder="Tạo mật khẩu mạnh" required className="form-input"/>
+                <input id="password" name="password" type={showPassword ? 'text' : 'password'} placeholder="Tạo mật khẩu mạnh" required className="form-input" />
                 <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
@@ -112,7 +113,7 @@ export default function RegisterPage() {
             <div className="form-group">
               <label htmlFor="confirmPassword">Xác nhận mật khẩu</label>
               <div className="password-input">
-                <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text':'password'} placeholder="Nhập lại mật khẩu" required className="form-input"/>
+                <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Nhập lại mật khẩu" required className="form-input" />
                 <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                   {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
@@ -122,7 +123,7 @@ export default function RegisterPage() {
 
             <div className="form-options">
               <label className="checkbox-container">
-                <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} required/>
+                <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} required />
                 <span className="checkmark"></span>
                 Tôi đồng ý với <Link to="/terms" className="terms-link">Điều khoản sử dụng</Link>
               </label>

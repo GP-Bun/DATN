@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { toast } from 'react-hot-toast'
+import Swal from 'sweetalert2'
 
 type OrderItem = {
     id: number
@@ -79,6 +81,30 @@ export default function OrdersPage() {
             console.error('Lỗi tải đơn hàng:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleCancelOrder = async (orderId: number) => {
+        const result = await Swal.fire({
+            title: 'Hủy đơn hàng?',
+            text: "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Đồng ý hủy',
+            cancelButtonText: 'Quay lại'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await userApi.post(`/orders/${orderId}/cancel`)
+                setOrders(orders.map(o => o.id === orderId ? { ...o, order_status: 'cancelled' } : o))
+                toast.success('Đã hủy đơn hàng thành công!')
+            } catch (err: any) {
+                console.error('Lỗi khi hủy đơn hàng:', err)
+                toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn hàng.')
+            }
         }
     }
 
@@ -268,7 +294,6 @@ export default function OrdersPage() {
                                                     {order.address.city && `, ${typeof order.address.city === 'object' ? order.address.city.name : order.address.city}`}
                                                     {order.address.province && `, ${typeof order.address.province === 'object' ? order.address.province.name : order.address.province}`}
                                                 </p>
-
                                             </div>
                                         )}
 
@@ -377,7 +402,6 @@ export default function OrdersPage() {
                                                     </p>
                                                 )}
 
-
                                                 <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
                                                     Phí vận chuyển: {new Intl.NumberFormat('vi-VN', {
                                                         style: 'decimal',
@@ -397,6 +421,28 @@ export default function OrdersPage() {
                                                         maximumFractionDigits: 0,
                                                     }).format(order.final_amount)}đ
                                                 </p>
+
+                                                {order.order_status === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleCancelOrder(order.id)}
+                                                        style={{
+                                                            marginTop: "20px",
+                                                            padding: "10px 20px",
+                                                            background: "#ef4444",
+                                                            color: "white",
+                                                            borderRadius: "8px",
+                                                            fontSize: "14px",
+                                                            fontWeight: "600",
+                                                            border: "none",
+                                                            cursor: "pointer",
+                                                            transition: "background 0.2s"
+                                                        }}
+                                                        onMouseOver={(e) => e.currentTarget.style.background = "#dc2626"}
+                                                        onMouseOut={(e) => e.currentTarget.style.background = "#ef4444"}
+                                                    >
+                                                        Hủy đơn hàng
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

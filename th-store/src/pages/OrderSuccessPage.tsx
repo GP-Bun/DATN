@@ -258,7 +258,7 @@ export default function OrderSuccessPage() {
             Tiếp tục mua sắm
           </button>
           <button
-            onClick={() => navigate('/san-pham')}
+            onClick={() => navigate('/don-hang')}
             style={{
               padding: '12px 24px',
               background: 'white',
@@ -270,7 +270,7 @@ export default function OrderSuccessPage() {
               fontWeight: '500'
             }}
           >
-            Xem sản phẩm
+            Xem đơn hàng
           </button>
         </div>
       </div>
