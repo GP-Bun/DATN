@@ -8,6 +8,7 @@ const Sidebar = () => {
     { name: "Đơn hàng", path: "/admin/orders", icon: "📋" },
     { name: "Người dùng", path: "/admin/users", icon: "👥" },
     { name: "Đánh giá", path: "/admin/reviews", icon: "💬" },
+    { name: "Hỗ trợ chat", path: "/admin/chat", icon: "🎧" },
   ];
 
   return (

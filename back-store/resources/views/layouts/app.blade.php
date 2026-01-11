@@ -179,6 +179,12 @@
             <i class="bi bi-chat-dots"></i> Đánh giá
         </a>
 
+        {{-- Hỗ trợ chat --}}
+        <a href="{{ route('admin.chat.index') }}"
+            class="{{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">
+            <i class="bi bi-headset"></i> Hỗ trợ chat
+        </a>
+
     </div>
 
     <!-- Main Content -->

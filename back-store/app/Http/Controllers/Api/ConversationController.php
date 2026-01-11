@@ -23,7 +23,7 @@ class ConversationController extends Controller
     // Admin xem tất cả hội thoại
     public function adminIndex()
     {
-        $conversations = Conversation::with('user')
+        $conversations = Conversation::with(['user', 'messages'])
             ->orderBy('last_message_at','desc')
             ->get();
 

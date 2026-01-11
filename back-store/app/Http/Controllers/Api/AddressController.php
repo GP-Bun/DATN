@@ -15,6 +15,7 @@ class AddressController extends Controller
     {
         $addresses = $request->user()->addresses()
             ->with(['province', 'district', 'ward'])
+            ->where('is_saved', true)
             ->orderByDesc('is_default')
             ->get();
 

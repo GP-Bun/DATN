@@ -34,6 +34,7 @@ import AdminUsers from './admin/pages/Users';
 import AdminReviews from './admin/pages/Reviews';
 import AdminLogin from './admin/pages/Login';
 import AdminRegister from './admin/pages/Register';
+import ChatSupport from './admin/pages/ChatSupport';
 
 // Contexts
 import { CartProvider } from './store/CartContext';
@@ -76,6 +77,7 @@ const routerConfig = [
       { path: 'orders', element: <AdminOrders /> },
       { path: 'users', element: <AdminUsers /> },
       { path: 'reviews', element: <AdminReviews /> },
+      { path: 'chat', element: <ChatSupport /> },
     ],
   },
 

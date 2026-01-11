@@ -22,6 +22,7 @@ class Address extends Model
         'line1',
         'zip',
         'is_default',
+        'is_saved',
         'province_id',
         'district_id',
         'ward_id',

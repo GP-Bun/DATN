@@ -16,10 +16,11 @@ export default function CartPage() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState("");
 
-  // Tự động chọn tất cả sản phẩm khi vào giỏ hàng lần đầu
+  // Tự động chọn tất cả sản phẩm (chỉ các sản phẩm còn hàng) khi vào giỏ hàng lần đầu
   useEffect(() => {
     if (items.length > 0 && selectedIds.length === 0) {
-      setSelectedIds(items.map(item => Number(item.id)));
+      const inStockIds = items.filter(item => item.stock > 0).map(item => Number(item.id));
+      setSelectedIds(inStockIds);
     }
   }, [items]);
 
@@ -123,17 +124,23 @@ export default function CartPage() {
   };
 
   // Các hàm xử lý chọn sản phẩm
-  const handleToggleSelect = (id: number) => {
+  const handleToggleSelect = (item: any) => {
+    if (item.stock <= 0) {
+      toast.error("Sản phẩm này hiện đang hết hàng");
+      return;
+    }
+    const id = Number(item.id);
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === items.length) {
+    const inStockItems = items.filter(item => item.stock > 0);
+    if (selectedIds.length === inStockItems.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(items.map(item => Number(item.id)));
+      setSelectedIds(inStockItems.map(item => Number(item.id)));
     }
   };
 
@@ -283,8 +290,14 @@ export default function CartPage() {
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(Number(item.id))}
-                  onChange={() => handleToggleSelect(Number(item.id))}
-                  style={{ width: "20px", height: "20px", cursor: "pointer" }}
+                  onChange={() => handleToggleSelect(item)}
+                  disabled={item.stock <= 0}
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    cursor: item.stock <= 0 ? "not-allowed" : "pointer",
+                    opacity: item.stock <= 0 ? 0.5 : 1
+                  }}
                 />
               </div>
 
@@ -301,9 +314,28 @@ export default function CartPage() {
                     height: "120px",
                     objectFit: "cover",
                     borderRadius: "8px",
-                    border: "1px solid #e5e7eb"
+                    border: "1px solid #e5e7eb",
+                    filter: item.stock <= 0 ? "grayscale(100%)" : "none",
+                    opacity: item.stock <= 0 ? 0.6 : 1
                   }}
                 />
+                {item.stock <= 0 && (
+                  <div style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    background: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    whiteSpace: "nowrap"
+                  }}>
+                    HẾT HÀNG
+                  </div>
+                )}
               </div>
 
               {/* Thông tin sản phẩm */}
@@ -429,30 +461,30 @@ export default function CartPage() {
                     </span>
                     <button
                       onClick={() => handleUpdateQuantity(Number(item.id), item.quantity + 1)}
-                      disabled={item.quantity >= item.stock}
+                      disabled={item.stock <= 0 || item.quantity >= item.stock}
                       style={{
                         width: "32px",
                         height: "32px",
                         border: "none",
                         background: "white",
                         borderRadius: "6px",
-                        cursor: item.quantity >= item.stock ? "not-allowed" : "pointer",
+                        cursor: (item.stock <= 0 || item.quantity >= item.stock) ? "not-allowed" : "pointer",
                         fontSize: "18px",
                         fontWeight: "600",
-                        color: item.quantity >= item.stock ? "#d1d5db" : "#6b7280",
+                        color: (item.stock <= 0 || item.quantity >= item.stock) ? "#d1d5db" : "#6b7280",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s"
                       }}
                       onMouseEnter={(e) => {
-                        if (item.quantity < item.stock) {
+                        if (item.stock > 0 && item.quantity < item.stock) {
                           e.currentTarget.style.background = "#dbeafe";
                           e.currentTarget.style.color = "#2563eb";
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (item.quantity < item.stock) {
+                        if (item.stock > 0 && item.quantity < item.stock) {
                           e.currentTarget.style.background = "white";
                           e.currentTarget.style.color = "#6b7280";
                         }

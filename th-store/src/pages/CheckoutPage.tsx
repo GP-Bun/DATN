@@ -6,6 +6,7 @@ import { checkout } from '../api/checkout.api'
 import { createOrder } from '../api/order.api'
 import type { CheckoutPayload } from '../api/checkout.api'
 import { formatPrice } from '../utils/formatPrice'
+import { getAvailableCoupons, applyCoupon } from '../api/coupon.api'
 import { geoApi } from '../api/geo.api'
 import type { Province, District, Ward } from '../api/geo.api'
 import api from '../api/api'
@@ -56,6 +57,9 @@ export default function CheckoutPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [couponCode, setCouponCode] = useState<string | null>(null)
+  const [discount, setDiscount] = useState(0)
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([])
+  const [loadingCoupons, setLoadingCoupons] = useState(false)
   const [showQRModal, setShowQRModal] = useState(false)
   const [qrData, setQrData] = useState<any>(null)
   const [currentOrder, setCurrentOrder] = useState<any>(null)
@@ -91,12 +95,56 @@ export default function CheckoutPage() {
 
   // Load coupon từ localStorage
   useEffect(() => {
-
     const savedCouponCode = localStorage.getItem("coupon_code");
+    const savedDiscount = localStorage.getItem("coupon_discount");
     if (savedCouponCode) {
       setCouponCode(savedCouponCode);
     }
+    if (savedDiscount) {
+      setDiscount(Number(savedDiscount));
+    }
   }, []);
+
+  // Fetch Available Coupons for Buy Now or Selected Items
+  useEffect(() => {
+    const fetchCoupons = async () => {
+      try {
+        setLoadingCoupons(true);
+        const data = await getAvailableCoupons(checkoutTotal);
+        setAvailableCoupons(data.coupons || []);
+      } catch (error) {
+        console.error("Failed to fetch coupons:", error);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    };
+    if (checkoutTotal > 0) {
+      fetchCoupons();
+    }
+  }, [checkoutTotal]);
+
+  const handleApplyCoupon = async (code: string) => {
+    try {
+      const result = await applyCoupon(code, checkoutTotal);
+      if (result.ok) {
+        setCouponCode(code);
+        setDiscount(result.discount || 0);
+        toast.success(`Đã áp dụng mã: ${code}`);
+      } else {
+        toast.error(result.message || 'Mã không hợp lệ');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Lỗi khi áp dụng mã giảm giá');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode(null);
+    setDiscount(0);
+    localStorage.removeItem("coupon_code");
+    localStorage.removeItem("coupon_discount");
+    localStorage.removeItem("applied_coupon");
+  };
 
   // Fetch Saved Addresses
   useEffect(() => {
@@ -259,15 +307,20 @@ export default function CheckoutPage() {
           },
           address_id: checkoutData.address_id,
           payment_method: checkoutData.payment_method,
-          total_price: checkoutTotal
+          total_price: checkoutTotal,
+          coupon_code: checkoutData.coupon_code
         };
         console.log('Creating direct order:', orderData);
-        // createOrder returns { message: string, data: Order } usually, need to check API response structure
         const result = await createOrder(orderData);
-        // Assuming createOrder returns the order object or { data: order }
-        // Looking at order.api.ts: return res.data.data. So result is the order object.
-        order = result;
-        response = { order, qr_code: order.qr_code }; // Mock response structure to match below logic if needed
+
+        // Handle result (createOrder returns res.data.data)
+        if (result && result.order) {
+          order = result.order;
+          response = result;
+        } else {
+          order = result;
+          response = { order, qr_code: order?.qr_code };
+        }
       } else {
         const res = await checkout(checkoutData)
         response = res;
@@ -1093,18 +1146,65 @@ export default function CheckoutPage() {
               <span style={{ fontWeight: "600", color: "#059669" }}>Miễn phí</span>
             </div>
 
-            {!buyNowItem && couponCode && (
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "12px"
-              }}>
-                <span style={{ color: "#6b7280" }}>Mã giảm giá ({couponCode}):</span>
-                <span style={{ fontWeight: "600", color: "#ef4444" }}>
-                  -{formatPrice(Number(localStorage.getItem("coupon_discount") || 0))}
-                </span>
-              </div>
-            )}
+            {/* Mã giảm giá */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: "600", color: "#374151" }}>
+                Mã giảm giá
+              </label>
+              {couponCode ? (
+                <div style={{
+                  padding: "12px",
+                  background: "#d1fae5",
+                  borderRadius: "8px",
+                  border: "1px solid #10b981",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}>
+                  <div>
+                    <div style={{ fontWeight: "700", color: "#065f46" }}>{couponCode}</div>
+                    <div style={{ fontSize: "12px", color: "#047857" }}>Tiết kiệm được {formatPrice(discount)}</div>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    style={{ background: "#ef4444", color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "12px" }}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {loadingCoupons ? (
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>Đang tải mã giảm giá...</div>
+                  ) : availableCoupons.length > 0 ? (
+                    <div style={{ maxHeight: "150px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {availableCoupons.map((coupon) => (
+                        <button
+                          key={coupon.id}
+                          onClick={() => handleApplyCoupon(coupon.code)}
+                          disabled={!coupon.is_applicable}
+                          style={{
+                            textAlign: "left",
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            border: "1px solid #e5e7eb",
+                            background: coupon.is_applicable ? "white" : "#f9fafb",
+                            cursor: coupon.is_applicable ? "pointer" : "not-allowed",
+                            fontSize: "13px",
+                            opacity: coupon.is_applicable ? 1 : 0.6
+                          }}
+                        >
+                          <div style={{ fontWeight: "600" }}>{coupon.code}</div>
+                          <div style={{ fontSize: "11px", color: "#6b7280" }}>{coupon.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>Không có mã giảm giá khả dụng</div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div style={{
               display: "flex",
@@ -1121,9 +1221,8 @@ export default function CheckoutPage() {
                 fontWeight: "700",
                 color: "#059669"
               }}>
-                {formatPrice(Math.max(0, checkoutTotal - (buyNowItem ? 0 : Number(localStorage.getItem("coupon_discount") || 0))))}
+                {formatPrice(Math.max(0, checkoutTotal - discount))}
               </span>
-
             </div>
 
           </div>

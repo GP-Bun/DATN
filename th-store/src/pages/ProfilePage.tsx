@@ -460,7 +460,7 @@ export default function ProfilePage() {
                     </div>
                     <div style={{ display: "flex", gap: "16px" }}>
                       <button onClick={() => handleEditAddress(addr)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", fontWeight: "600" }}>Sửa</button>
-                      {!addr.is_default && <button onClick={() => handleDeleteAddress(addr.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "600" }}>Xóa</button>}
+                      <button onClick={() => handleDeleteAddress(addr.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "600" }}>Xóa</button>
                     </div>
                   </div>
                 ))

@@ -102,4 +102,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::put('reviews/{id}/status', [AdminReviewController::class, 'updateStatus'])->name('reviews.updateStatus');
     Route::delete('reviews/{id}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
 
+    // Chat Support
+    Route::get('chat', [App\Http\Controllers\Admin\ChatController::class, 'index'])->name('chat.index');
+    Route::get('chat/{id}/messages', [App\Http\Controllers\Admin\ChatController::class, 'getMessages'])->name('chat.messages');
+    Route::post('chat/send', [App\Http\Controllers\Admin\ChatController::class, 'sendMessage'])->name('chat.send');
+    Route::delete('chat/{id}', [App\Http\Controllers\Admin\ChatController::class, 'destroy'])->name('chat.destroy');
+
 });

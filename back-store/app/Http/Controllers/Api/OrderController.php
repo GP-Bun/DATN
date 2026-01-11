@@ -112,9 +112,11 @@ class OrderController extends Controller
             'address.receiver_phone' => 'required|string|max:20',
             'address.line1'         => 'required|string|max:255',
             'address.province_id'   => 'required|exists:provinces,id',
-            'address.district_id'   => 'required_if:address_id,null|exists:districts,id',
-            'address.ward_id'       => 'required_if:address_id,null|exists:wards,id',
+            'address.district_id'   => 'required|exists:districts,id',
+            'address.ward_id'       => 'required|exists:wards,id',
+            'address.zip'           => 'nullable|string|max:20',
             'payment_method'        => 'required|string|in:cod,bank_transfer',
+            'coupon_code'           => 'nullable|string',
         ]);
 
 
@@ -127,21 +129,47 @@ class OrderController extends Controller
 
         // Nếu hợp lệ thì mới tạo đơn
         return DB::transaction(function () use ($request) {
-            $address = Address::create([
-                'user_id'        => $request->user()->id,
-                'receiver_name'  => $request->address['receiver_name'],
-                'receiver_phone' => $request->address['receiver_phone'],
-                'line1'          => $request->address['line1'],
-                'province_id'    => $request->address['province_id'],
-                'district_id'    => $request->address['district_id'],
-                'ward_id'        => $request->address['ward_id'],
-                'zip'            => $request->address['zip'] ?? null,
-            ]);
+            $userId = $request->user()->id;
+            
+            // Nếu có address_id thì ưu tiên dùng, nếu không thì tìm hoặc tạo mới (tránh trùng lặp)
+            if ($request->filled('address_id')) {
+                $addressId = $request->address_id;
+                // Kiểm tra xem địa chỉ này có thuộc về user không
+                $exists = Address::where('id', $addressId)->where('user_id', $userId)->exists();
+                if (!$exists) {
+                    throw new \Exception("Địa chỉ không hợp lệ hoặc không thuộc về bạn.");
+                }
+            } else {
+                // Tìm địa chỉ giống hệt để tránh clone quá nhiều (theo yêu cầu user)
+                $address = Address::where([
+                    'user_id'        => $userId,
+                    'receiver_name'  => $request->address['receiver_name'],
+                    'receiver_phone' => $request->address['receiver_phone'],
+                    'line1'          => $request->address['line1'],
+                    'province_id'    => $request->address['province_id'],
+                    'district_id'    => $request->address['district_id'],
+                    'ward_id'        => $request->address['ward_id'],
+                ])->first();
 
+                if (!$address) {
+                    $address = Address::create([
+                        'user_id'        => $userId,
+                        'receiver_name'  => $request->address['receiver_name'],
+                        'receiver_phone' => $request->address['receiver_phone'],
+                        'line1'          => $request->address['line1'],
+                        'province_id'    => $request->address['province_id'],
+                        'district_id'    => $request->address['district_id'],
+                        'ward_id'        => $request->address['ward_id'],
+                        'zip'            => $request->address['zip'] ?? null,
+                        'is_saved'       => false, // Không tự động thêm vào danh sách địa chỉ đã lưu
+                    ]);
+                }
+                $addressId = $address->id;
+            }
 
             $order = Order::create([
-                'user_id'        => $request->user()->id,
-                'address_id'     => $address->id,
+                'user_id'        => $userId,
+                'address_id'     => $addressId,
                 'order_status'   => 'pending',
                 'payment_status' => 'unpaid',
                 'final_amount'   => 0,
@@ -158,9 +186,15 @@ class OrderController extends Controller
 
                 if (!empty($item['variant_id'])) {
                     $variant = ProductVariant::findOrFail($item['variant_id']);
+                    if ($variant->stock < $item['quantity']) {
+                        throw new \Exception("Biến thể {$product->name} không đủ tồn kho");
+                    }
                     $variant->decrement('stock', $item['quantity']);
                     $price = $variant->sale_price ?? $variant->original_price;
                 } else {
+                    if ($product->stock < $item['quantity']) {
+                        throw new \Exception("Sản phẩm {$product->name} không đủ tồn kho");
+                    }
                     $product->decrement('stock', $item['quantity']);
                 }
 
@@ -176,7 +210,33 @@ class OrderController extends Controller
                 $total += $price * $item['quantity'];
             }
 
-            $order->update(['final_amount' => $total]);
+            // Xử lý mã giảm giá
+            $discount = 0;
+            $couponId = null;
+
+            if ($request->coupon_code) {
+                $coupon = \App\Models\Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($request->coupon_code))])->first();
+                
+                if ($coupon && $coupon->active) {
+                    $now = now();
+                    if ((!$coupon->starts_at || $now->gte($coupon->starts_at)) && 
+                        (!$coupon->ends_at || $now->lte($coupon->ends_at)) &&
+                        (!$coupon->usage_limit || $coupon->used_count < $coupon->usage_limit) &&
+                        (!$coupon->min_order_amount || $total >= $coupon->min_order_amount)) {
+                        
+                        $discount = $coupon->calculateDiscount($total);
+                        $couponId = $coupon->id;
+                        $coupon->increment('used_count');
+                    }
+                }
+            }
+
+            $finalAmount = max(0, $total - $discount);
+            $order->update([
+                'coupon_id' => $couponId,
+                'discount_amount' => $discount,
+                'final_amount' => $finalAmount
+            ]);
 
             Activity::create([
                 'user_id'    => $request->user()->id,
@@ -184,26 +244,56 @@ class OrderController extends Controller
                 'description' => 'Người dùng đã tạo đơn hàng #' . $order->id,
             ]);
 
+            $order = $order->load(['items.product', 'items.variant', 'address', 'coupon']);
+
+            // Format image URLs
+            $order->items->each(function ($item) {
+                if ($item->product) {
+                    if ($item->product->thumbnail) {
+                        $item->product->image = url('storage/' . $item->product->thumbnail);
+                    } elseif ($item->product->images && is_array($item->product->images) && count($item->product->images) > 0) {
+                        $item->product->image = url('storage/' . $item->product->images[0]);
+                    }
+                }
+            });
+
             if ($order->payment_method === 'cod') {
                 return response()->json([
                     'message' => 'Đặt hàng thành công! Thanh toán khi nhận hàng.',
-                    'order'   => new OrderResource($order->load('items', 'address'))
+                    'order'   => $order,
+                    'data'    => $order // For backward compatibility if needed by frontend returning res.data.data
                 ]);
             } else {
                 $bankAccount = "123456789";
                 $bankName    = "Vietcombank";
-                $qrData      = "2|99|{$bankAccount}|{$order->final_amount}|Thanh toan don hang #{$order->id}";
+                $accountName = "CONG TY TNHH THUONG MAI";
+                
+                $qrDataString = "2|99|{$bankAccount}|{$order->final_amount}|Thanh toan don hang #{$order->id}|{$accountName}";
+                $qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrDataString);
+
+                $qr_code = [
+                    'data' => $qrDataString,
+                    'image_url' => $qrCodeUrl,
+                    'bank_account' => $bankAccount,
+                    'bank_name' => $bankName,
+                    'account_name' => $accountName,
+                    'amount' => $order->final_amount,
+                    'order_id' => $order->id
+                ];
 
                 return response()->json([
                     'message'      => 'Vui lòng quét QR để thanh toán',
-                    'order'        => $order->load('items.product', 'items.variant'),
-                    'qr_code_data' => $qrData,
-                    'bank_account' => $bankAccount,
-                    'bank_name'    => $bankName,
+                    'order'        => $order,
+                    'qr_code'      => $qr_code,
+                    'data'         => [
+                        'order' => $order,
+                        'qr_code' => $qr_code
+                    ]
                 ]);
             }
         });
     }
+
 
 
     // 🟩 Người dùng hoặc webhook xác nhận thanh toán

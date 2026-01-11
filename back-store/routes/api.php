@@ -116,7 +116,7 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
 Route::post('/checkout', [CheckoutController::class, 'checkout'])->middleware('auth:sanctum');
 
 // CHATBOT API
-Route::post('/chatbot', [ChatBotController::class, 'chat']);
+Route::post('/chatbot', [ChatBotController::class, 'chat'])->middleware('auth:sanctum');
 
 // USER — cần đăng nhập
 Route::middleware('auth:sanctum')->group(function () {

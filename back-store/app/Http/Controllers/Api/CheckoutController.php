@@ -61,21 +61,44 @@ class CheckoutController extends Controller
 
         DB::beginTransaction();
         try {
-            // Nếu không có address_id thì tạo mới
+            // Nếu không có address_id thì tìm hoặc tạo mới (tránh trùng lặp)
             try {
-                $addressId = $request->address_id ?: Address::create([
-                    'user_id'        => $user->id,
-                    'receiver_name'  => $request->full_name,
-                    'receiver_phone' => $request->phone,
-                    'line1'          => $request->address,
-                    'province_id'    => $request->province_id,
-                    'district_id'    => $request->district_id,
-                    'ward_id'        => $request->ward_id,
-                    'is_default'     => false,
-                ])->id;
+                if ($request->filled('address_id')) {
+                    $addressId = $request->address_id;
+                    // Kiểm tra xem địa chỉ này có thuộc về user không
+                    if (!Address::where('id', $addressId)->where('user_id', $user->id)->exists()) {
+                        throw new \Exception("Địa chỉ không hợp lệ.");
+                    }
+                } else {
+                    // Check duplicate
+                    $existingAddress = Address::where([
+                        'user_id'        => $user->id,
+                        'receiver_name'  => $request->full_name,
+                        'receiver_phone' => $request->phone,
+                        'line1'          => $request->address,
+                        'province_id'    => $request->province_id,
+                        'district_id'    => $request->district_id,
+                        'ward_id'        => $request->ward_id,
+                    ])->first();
 
+                    if ($existingAddress) {
+                        $addressId = $existingAddress->id;
+                    } else {
+                        $addressId = Address::create([
+                            'user_id'        => $user->id,
+                            'receiver_name'  => $request->full_name,
+                            'receiver_phone' => $request->phone,
+                            'line1'          => $request->address,
+                            'province_id'    => $request->province_id,
+                            'district_id'    => $request->district_id,
+                            'ward_id'        => $request->ward_id,
+                            'is_default'     => false,
+                            'is_saved'       => false, // Không tự động thêm vào danh sách địa chỉ đã lưu
+                        ])->id;
+                    }
+                }
             } catch (\Exception $e) {
-                throw new \Exception("Lỗi tạo địa chỉ: " . $e->getMessage());
+                throw new \Exception("Lỗi xử lý địa chỉ: " . $e->getMessage());
             }
 
             $total = 0;
