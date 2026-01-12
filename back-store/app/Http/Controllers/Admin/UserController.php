@@ -19,21 +19,27 @@ class UserController extends Controller {
 
     public function store(Request $request) {
         $request->validate([
-            'name'=>'required|string|max:255',
-            'email'=>'required|email|unique:users,email',
-            'password'=>'required|string|min:6|confirmed',
-            'role'=>'required|in:admin,user,customer'
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6|confirmed',
+            'role' => 'required|in:admin,user,staff',
         ]);
 
-        User::create([
-            'name'=>$request->name,
-            'email'=>$request->email,
-            'password'=>Hash::make($request->password),
-            'role'=>$request->role,
-            'active'=>$request->has('active') ? 1 : 0,
-        ]);
+        $user = new User();
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->password = Hash::make($request->password);
+        $user->role = $request->role;
+        $user->active = $request->has('active') ? 1 : 0;
 
-        return redirect()->route('admin.users.index')->with('success','Thêm tài khoản thành công!');
+        // Gán quyền nếu là staff
+        if ($user->role === 'staff') {
+            $user->permissions = $request->permissions ?? [];
+        }
+
+        $user->save();
+
+        return redirect()->route('admin.users.index')->with('success', 'Thêm tài khoản thành công!');
     }
 
     public function edit(User $user) {
@@ -42,10 +48,10 @@ class UserController extends Controller {
 
     public function update(Request $request, User $user) {
         $request->validate([
-            'name'=>'required|string|max:255',
-            'email'=>"required|email|unique:users,email,$user->id",
-            'password'=>'nullable|string|min:6|confirmed',
-            'role'=>'required|in:admin,user,customer'
+            'name' => 'required|string|max:255',
+            'email' => "required|email|unique:users,email,{$user->id}",
+            'password' => 'nullable|string|min:6|confirmed',
+            'role' => 'required|in:admin,user,staff',
         ]);
 
         $user->name = $request->name;
@@ -53,25 +59,31 @@ class UserController extends Controller {
         $user->role = $request->role;
         $user->active = $request->has('active') ? 1 : 0;
 
-        if($request->password){
+        if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
         }
+
+        // Gán quyền nếu là staff, ngược lại xóa quyền
+        if ($user->role === 'staff') {
+            $user->permissions = $request->permissions ?? [];
+        } else {
+            $user->permissions = null;
+        }
+
         $user->save();
 
-        return redirect()->route('admin.users.index')->with('success','Cập nhật tài khoản thành công!');
+        return redirect()->route('admin.users.index')->with('success', 'Cập nhật tài khoản thành công!');
     }
 
-    public function show($id)
-{
-    $user = User::with(['activities', 'orders.items.product', 'reviews.product', 'cart.items.product'])
-                ->findOrFail($id);
+    public function show($id) {
+        $user = User::with(['activities', 'orders.items.product', 'reviews.product', 'cart.items.product'])
+                    ->findOrFail($id);
 
-    return view('admin.users.show', compact('user'));
-}
-
+        return view('admin.users.show', compact('user'));
+    }
 
     public function destroy(User $user) {
         $user->delete();
-        return redirect()->route('admin.users.index')->with('success','Xóa tài khoản thành công!');
+        return redirect()->route('admin.users.index')->with('success', 'Xóa tài khoản thành công!');
     }
 }

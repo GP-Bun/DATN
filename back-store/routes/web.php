@@ -17,9 +17,13 @@ use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\WebAuthController;
-
+use App\Http\Controllers\Admin\ChatController;
 
 // ==================== Public Routes ====================
+
+Route::get('/login', function () {
+    return redirect()->route('admin.login');
+})->name('login');
 
 // Trang chính chuyển đến login admin
 Route::get('/', function () {
@@ -47,41 +51,55 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // ==================== Admin Routes (cần đăng nhập) ====================
-Route::prefix('admin')->name('admin.')->middleware('admin.web.auth')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth:admin', 'role:admin,staff'])->group(function () {
 
-    // Dashboard - Nhân viên chỉ xem dashboard đơn giản, Admin xem đầy đủ thống kê
+    // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // ==================== QUYỀN CHỈ ADMIN ====================
-    // Categories - chỉ admin được tạo/xóa
-    Route::resource('categories', AdminCategoryController::class)
-        ->middleware('admin.web.permission:manage_categories');
+    // ==================== CHỈ ADMIN ====================
+    Route::middleware('role:admin')->group(function () {
+        // Categories
+        Route::resource('categories', AdminCategoryController::class)
+            ->middleware('permission:manage_categories');
 
-    // Coupons - chỉ admin
-    Route::resource('coupons', AdminCouponController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
-        ->middleware('admin.web.permission:manage_coupons');
+        // Coupons
+        Route::resource('coupons', AdminCouponController::class)
+            ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+            ->middleware('permission:manage_coupons');
 
-    // Users - chỉ admin
-    Route::resource('users', AdminUserController::class)
-        ->middleware('admin.web.permission:manage_users');
-    Route::resource('accounts', AdminUserController::class)
-        ->middleware('admin.web.permission:manage_users');
+        // Users
+        Route::resource('users', AdminUserController::class)
+            ->middleware('permission:manage_users');
+        Route::resource('accounts', AdminUserController::class)
+            ->middleware('permission:manage_users');
 
-    // ==================== QUYỀN ADMIN VÀ NHÂN VIÊN ====================
+        // Force delete product
+        Route::delete('products/{id}/force-delete', [AdminProductController::class, 'forceDelete'])
+            ->name('products.forceDelete')
+            ->middleware('permission:delete_products');
 
-    // Products - nhân viên được thêm/sửa
+        // Delete review
+        Route::delete('reviews/{id}', [AdminReviewController::class, 'destroy'])
+            ->name('reviews.destroy')
+            ->middleware('permission:delete_reviews');
+    });
+
+    // ==================== ADMIN & STAFF ====================
+
+    // Products
     Route::get('products/trash', [AdminProductController::class, 'trash'])
-        ->name('products.trash');
-    Route::patch('products/{id}/restore', [AdminProductController::class, 'restore'])
-        ->name('products.restore');
-    Route::delete('products/{id}/force-delete', [AdminProductController::class, 'forceDelete'])
-        ->name('products.forceDelete')
-        ->middleware('admin.web.permission:delete_products'); // Chỉ admin được xóa vĩnh viễn
-    Route::resource('products', AdminProductController::class);
+        ->name('products.trash')
+        ->middleware('permission:edit_products');
 
-    // Product Variants (nested)
-    Route::prefix('products/{product}')->group(function () {
+    Route::patch('products/{id}/restore', [AdminProductController::class, 'restore'])
+        ->name('products.restore')
+        ->middleware('permission:edit_products');
+
+    Route::resource('products', AdminProductController::class)
+        ->middleware('permission:edit_products');
+
+    // Product Variants
+    Route::prefix('products/{product}')->middleware('permission:edit_products')->group(function () {
         Route::post('/variants', [AdminProductVariantController::class, 'store'])->name('products.variants.store');
         Route::put('/variants/{variant}', [AdminProductVariantController::class, 'update'])->name('products.variants.update');
         Route::delete('/variants/{variant}', [AdminProductVariantController::class, 'destroy'])->name('products.variants.destroy');
@@ -89,26 +107,49 @@ Route::prefix('admin')->name('admin.')->middleware('admin.web.auth')->group(func
 
     // Colors & Sizes
     Route::resource('colors', \App\Http\Controllers\Admin\ColorController::class)
-        ->only(['index', 'store', 'destroy']);
+        ->only(['index', 'store', 'destroy'])
+        ->middleware('permission:edit_products');
+
     Route::resource('sizes', \App\Http\Controllers\Admin\SizeController::class)
-        ->only(['index', 'store', 'destroy']);
+        ->only(['index', 'store', 'destroy'])
+        ->middleware('permission:edit_products');
 
-    // Orders - nhân viên được xem và cập nhật
-    Route::get('orders/search', [AdminOrderController::class, 'search'])->name('orders.search');
-    Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
+    // Orders
+    Route::get('orders/search', [AdminOrderController::class, 'search'])
+        ->name('orders.search')
+        ->middleware('permission:view_orders');
+
+    Route::resource('orders', AdminOrderController::class)
+        ->only(['index', 'show', 'update', 'destroy'])
+        ->middleware('permission:view_orders');
+
     Route::put('orders/{order}/update-payment', [AdminOrderController::class, 'updatePayment'])
-        ->name('orders.updatePayment');
+        ->name('orders.updatePayment')
+        ->middleware('permission:view_orders');
 
-    // Reviews - nhân viên được xem và phản hồi
-    Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
-    Route::put('reviews/{id}/status', [AdminReviewController::class, 'updateStatus'])->name('reviews.updateStatus');
-    Route::delete('reviews/{id}', [AdminReviewController::class, 'destroy'])
-        ->name('reviews.destroy')
-        ->middleware('admin.web.permission:delete_reviews'); // Chỉ admin được xóa
+    // Reviews
+    Route::get('reviews', [AdminReviewController::class, 'index'])
+        ->name('reviews.index')
+        ->middleware('permission:manage_reviews');
+
+    Route::put('reviews/{id}/status', [AdminReviewController::class, 'updateStatus'])
+        ->name('reviews.updateStatus')
+        ->middleware('permission:manage_reviews');
 
     // Chat Support
-    Route::get('chat', [App\Http\Controllers\Admin\ChatController::class, 'index'])->name('chat.index');
-    Route::get('chat/{id}/messages', [App\Http\Controllers\Admin\ChatController::class, 'getMessages'])->name('chat.messages');
-    Route::post('chat/send', [App\Http\Controllers\Admin\ChatController::class, 'sendMessage'])->name('chat.send');
-    Route::delete('chat/{id}', [App\Http\Controllers\Admin\ChatController::class, 'destroy'])->name('chat.destroy');
+    Route::get('chat', [ChatController::class, 'index'])
+        ->name('chat.index')
+        ->middleware('permission:chat_support');
+
+    Route::get('chat/{id}/messages', [ChatController::class, 'getMessages'])
+        ->name('chat.messages')
+        ->middleware('permission:chat_support');
+
+    Route::post('chat/send', [ChatController::class, 'sendMessage'])
+        ->name('chat.send')
+        ->middleware('permission:chat_support');
+
+    Route::delete('chat/{id}', [ChatController::class, 'destroy'])
+        ->name('chat.destroy')
+        ->middleware('permission:chat_support');
 });

@@ -4,9 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Admin;
-use App\Models\Staff;
 
 class AdminWebPermission
 {
@@ -21,29 +20,30 @@ class AdminWebPermission
      */
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        $accountType = session('admin_account_type');
-        $userId = session('admin_user_id');
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
-        // Admin có tất cả quyền
-        if ($accountType === 'admin') {
+        if (!$user) {
+            return redirect()->route('admin.login')
+                ->with('error', 'Vui lòng đăng nhập để tiếp tục');
+        }
+
+        // Admin có toàn quyền
+        if ($user->role === 'admin') {
             return $next($request);
         }
 
-        // Lấy staff từ database
-        $staff = Staff::find($userId);
-
-        if (!$staff) {
-            return redirect()->route('admin.login')
-                ->with('error', 'Phiên đăng nhập hết hạn');
-        }
-
-        // Kiểm tra quyền
-        foreach ($permissions as $permission) {
-            if (!$staff->hasPermission($permission)) {
-                return back()->with('error', 'Bạn không có quyền thực hiện hành động này');
+        // Nếu là staff thì kiểm tra quyền
+        if ($user->role === 'staff') {
+            foreach ($permissions as $permission) {
+                if (!method_exists($user, 'hasPermission') || !$user->hasPermission($permission)) {
+                    return back()->with('error', 'Bạn không có quyền thực hiện hành động này');
+                }
             }
+            return $next($request);
         }
 
-        return $next($request);
+        // Nếu không phải admin hoặc staff
+        return abort(403, 'Tài khoản không hợp lệ');
     }
 }

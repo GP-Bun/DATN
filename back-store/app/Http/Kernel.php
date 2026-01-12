@@ -36,6 +36,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            
         ],
 
         'api' => [
@@ -65,14 +66,14 @@ class Kernel extends HttpKernel
     'signed' => \App\Http\Middleware\ValidateSignature::class,
     'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
     'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+    'role' => \App\Http\Middleware\CheckRole::class,
+
 
     // Middleware phân quyền API
     'admin' => \App\Http\Middleware\AdminMiddleware::class,
     'permission' => \App\Http\Middleware\CheckPermission::class,
 
-    // Middleware phân quyền Web Admin
-    'admin.web.auth' => \App\Http\Middleware\AdminWebAuth::class,
-    'admin.web.permission' => \App\Http\Middleware\AdminWebPermission::class,
+    
 ];
 
 }

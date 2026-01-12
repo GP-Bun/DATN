@@ -13,15 +13,17 @@ return [
             'provider' => 'users',
         ],
 
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+
         'sanctum' => [
             'driver' => 'sanctum',
             'provider' => 'users',
         ],
 
-        'admin' => [
-            'driver' => 'sanctum',
-            'provider' => 'admins',
-        ],
     ],
 
     'providers' => [
@@ -30,10 +32,6 @@ return [
             'model' => App\Models\User::class,
         ],
 
-        'admins' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\Admin::class,
-        ],
     ],
 
     'passwords' => [
@@ -44,12 +42,6 @@ return [
             'throttle' => 60,
         ],
 
-        'admins' => [
-            'provider' => 'admins',
-            'table' => 'password_reset_tokens',
-            'expire' => 60,
-            'throttle' => 60,
-        ],
     ],
 
     'password_timeout' => 10800,

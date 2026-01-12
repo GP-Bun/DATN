@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Admin;
-use App\Models\Staff;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
 class WebAuthController extends Controller
@@ -16,8 +13,7 @@ class WebAuthController extends Controller
      */
     public function showLoginForm()
     {
-        // Nếu đã đăng nhập rồi thì chuyển đến dashboard
-        if (session('admin_logged_in')) {
+        if (Auth::guard('admin')->check() && in_array(Auth::guard('admin')->user()->role, ['admin', 'staff'])) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -39,43 +35,24 @@ class WebAuthController extends Controller
             'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự',
         ]);
 
-        // Tìm trong bảng admins trước
-        $admin = Admin::where('email', $request->email)
-            ->where('active', true)
-            ->first();
+        $credentials = $request->only('email', 'password');
 
-        // Nếu không tìm thấy, tìm trong bảng staffs
-        $staff = null;
-        if (!$admin) {
-            $staff = Staff::where('email', $request->email)
-                ->where('active', true)
-                ->first();
+        if (Auth::guard('admin')->attempt($credentials)) {
+            $user = Auth::guard('admin')->user();
+
+            if (!$user->active || !in_array($user->role, ['admin', 'staff'])) {
+                Auth::guard('admin')->logout();
+                return back()->with('error', 'Tài khoản không hợp lệ hoặc bị khóa');
+            }
+
+            $request->session()->regenerate();
+
+            return redirect()->route('admin.dashboard')
+                ->with('success', 'Đăng nhập thành công! Chào mừng ' . $user->name);
         }
 
-        $user = $admin ?? $staff;
-        $accountType = $admin ? 'admin' : ($staff ? 'staff' : null);
-
-        // Kiểm tra mật khẩu
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return back()
-                ->withInput($request->only('email'))
-                ->with('error', 'Email hoặc mật khẩu không đúng');
-        }
-
-        // Lưu thông tin đăng nhập vào session
-        session([
-            'admin_logged_in' => true,
-            'admin_user_id' => $user->id,
-            'admin_user_name' => $user->name,
-            'admin_user_email' => $user->email,
-            'admin_account_type' => $accountType,
-        ]);
-
-        // Regenerate session để bảo mật
-        $request->session()->regenerate();
-
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Đăng nhập thành công! Chào mừng ' . $user->name);
+        return back()->withInput($request->only('email'))
+            ->with('error', 'Email hoặc mật khẩu không đúng');
     }
 
     /**
@@ -83,14 +60,7 @@ class WebAuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // Xóa thông tin session
-        session()->forget([
-            'admin_logged_in',
-            'admin_user_id',
-            'admin_user_name',
-            'admin_user_email',
-            'admin_account_type',
-        ]);
+        Auth::guard('admin')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

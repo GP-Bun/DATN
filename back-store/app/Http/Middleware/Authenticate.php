@@ -7,16 +7,20 @@ use Illuminate\Http\Request;
 
 class Authenticate extends Middleware
 {
-    protected function redirectTo($request)
-    {
-        // Nếu request API => trả 401 JSON
-        if ($request->expectsJson() || $request->is('api/*')) {
-            return null;
-        }
-    
-        // Nếu có login web thì trả về route login
-        // Nếu không có thì trả null luôn
+    protected function redirectTo($request): ?string
+{
+    if ($request->expectsJson() || $request->is('api/*')) {
         return null;
     }
+
+    // Nếu URL bắt đầu bằng /admin thì redirect về trang đăng nhập admin
+    if ($request->is('admin/*')) {
+        return route('admin.login');
+    }
+
+    // Nếu là người dùng thường (nếu có)
+    return route('login');
+}
+
     
 }

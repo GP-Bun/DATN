@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CheckPermission
 {
@@ -15,19 +16,21 @@ class CheckPermission
      */
     public function handle(Request $request, Closure $next, string ...$permissions)
     {
-        $user = $request->user();
+        // /** @var \App\Models\User $user */
+        $user = Auth::user();
 
+        // Nếu chưa đăng nhập
         if (!$user) {
-            return response()->json([
-                'message' => 'Chưa đăng nhập',
-            ], 401);
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Chưa đăng nhập'], 401)
+                : redirect()->route('admin.login')->with('error', 'Vui lòng đăng nhập');
         }
 
-        // Kiểm tra user có method hasPermission không
+        // Nếu user không có method hasPermission
         if (!method_exists($user, 'hasPermission')) {
-            return response()->json([
-                'message' => 'Không có quyền truy cập',
-            ], 403);
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Không có quyền truy cập'], 403)
+                : abort(403, 'Tài khoản không hỗ trợ phân quyền');
         }
 
         // Kiểm tra ít nhất 1 quyền phù hợp
@@ -37,9 +40,11 @@ class CheckPermission
             }
         }
 
-        return response()->json([
-            'message' => 'Bạn không có quyền thực hiện hành động này',
-            'required_permissions' => $permissions,
-        ], 403);
+        return $request->expectsJson()
+            ? response()->json([
+                'message' => 'Bạn không có quyền thực hiện hành động này',
+                'required_permissions' => $permissions,
+            ], 403)
+            : back()->with('error', 'Bạn không có quyền thực hiện hành động này');
     }
 }

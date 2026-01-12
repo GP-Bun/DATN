@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 
+
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
@@ -20,12 +21,18 @@ class User extends Authenticatable
         'avatar',
         'role',
         'active',
+        'permissions',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
+
+    protected $casts = [
+        'permissions' => 'array',
+    ];
+
 
     public function addresses()
     {
@@ -66,8 +73,20 @@ class User extends Authenticatable
     }
 
     public function activities()
-{
-    return $this->hasMany(Activity::class);
-}
+    {
+        return $this->hasMany(Activity::class);
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        // Nếu bạn lưu quyền trong cột JSON 'permissions'
+        $permissions = $this->permissions ?? [];
+
+        return in_array($permission, $permissions);
+    }
 
 }

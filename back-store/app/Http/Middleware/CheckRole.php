@@ -4,36 +4,30 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CheckRole
 {
-    /**
-     * Kiểm tra role của user
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
-     * @param  string  ...$roles  Các role được phép truy cập
-     * @return mixed
-     */
-    public function handle(Request $request, Closure $next, string ...$roles)
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        $user = $request->user();
+        $user = Auth::user();
 
+        // Nếu chưa đăng nhập
         if (!$user) {
-            return response()->json([
-                'message' => 'Chưa đăng nhập',
-            ], 401);
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Chưa đăng nhập'], 401)
+                : redirect()->route('admin.login')->with('error', 'Vui lòng đăng nhập');
         }
 
-        // Lấy role của user
-        $userRole = $user->role ?? null;
-
-        if (!$userRole || !in_array($userRole, $roles)) {
-            return response()->json([
-                'message' => 'Bạn không có quyền truy cập trang này',
-                'your_role' => $userRole,
-                'required_roles' => $roles,
-            ], 403);
+        // Nếu không có role phù hợp
+        if (!in_array($user->role, $roles)) {
+            return $request->expectsJson()
+                ? response()->json([
+                    'message' => 'Bạn không có quyền truy cập',
+                    'your_role' => $user->role,
+                    'required_roles' => $roles,
+                ], 403)
+                : abort(403, 'Bạn không có quyền truy cập');
         }
 
         return $next($request);
