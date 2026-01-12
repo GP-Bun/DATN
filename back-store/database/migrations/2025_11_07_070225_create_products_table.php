@@ -12,10 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
             $table->string('name');
+            $table->string('slug')->unique();
             $table->text('description')->nullable();
-            $table->decimal('price', 15, 2);
-            $table->string('image')->nullable();
-            $table->string('status')->default('active');
+            $table->decimal('price', 15,2);
+            $table->string('thumbnail')->nullable();
+            $table->json('images')->nullable();
+            $table->tinyInteger('status')->default(1)->comment('0=Ẩn,1=Còn hàng,2=Hết hàng');
             $table->timestamps();
             $table->softDeletes();
         });
@@ -26,3 +28,4 @@ return new class extends Migration
         Schema::dropIfExists('products');
     }
 };
+

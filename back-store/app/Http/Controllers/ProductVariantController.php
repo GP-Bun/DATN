@@ -24,7 +24,7 @@ class ProductVariantController extends Controller
             'size' => $request->size,
             'price' => $request->price,
             'stock' => $request->stock,
-            'status' => $request->status ?? 'ACTIVE', // mặc định ACTIVE
+            'status' => $request->status ?? 'ACTIVE',
         ]);
 
         return redirect()->back()->with('success', 'Thêm biến thể thành công!');

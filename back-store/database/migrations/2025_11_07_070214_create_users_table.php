@@ -15,8 +15,10 @@ return new class extends Migration
             $table->string('password');
             $table->string('phone')->nullable();
             $table->string('role')->default('customer');
+            $table->boolean('active')->default(true);
             $table->timestamps();
             $table->softDeletes();
+            $table->rememberToken();
         });
     }
 

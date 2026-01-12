@@ -1,39 +1,177 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
+// src/store/AuthContext.tsx
+import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import axios from "axios";
 
-type User = { id: string; name: string; email: string }
+// ==================== Types ====================
+type User = { id: number; name: string; email: string };
+type Admin = { id: number; name: string; email: string };
+
 type AuthContextValue = {
-  user: User | null
-  login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
-  logout: () => void
-}
+  user: User | null;
+  admin: Admin | null;
+  loading: boolean;
+  loginUser: (email: string, password: string, remember?: boolean) => Promise<void>;
+  registerUser: (name: string, email: string, password: string) => Promise<void>;
+  loginAdmin: (email: string, password: string, remember?: boolean) => Promise<void>;
+  registerAdmin: (name: string, email: string, password: string) => Promise<void>;
+  logoutUser: () => void;
+  logoutAdmin: () => void;
+  refreshUser: () => Promise<void>;
+};
 
-const AuthContext = createContext<AuthContextValue | null>(null)
-
+// ==================== Context ====================
+const AuthContext = createContext<AuthContextValue | null>(null);
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
 
+// ==================== Axios Instances ====================
+const userApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" });
+const adminApi = axios.create({ baseURL: "http://127.0.0.1:8000/api" });
+
+// Interceptor user token - kiểm tra cả localStorage và sessionStorage
+userApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Interceptor admin token
+adminApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ==================== Provider ====================
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(null);
+  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 400))
-    setUser({ id: '1', name: email.split('@')[0] || 'User', email })
-  }
+  // -------------------- User --------------------
+  const loginUser = async (email: string, password: string, remember = false) => {
+    try {
+      const res = await userApi.post<{ user: User; access_token: string }>("/login", { email, password });
 
-  const register = async (name: string, email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 400))
-    setUser({ id: '1', name, email })
-  }
+      // Kiểm tra response có đầy đủ dữ liệu không
+      if (!res.data.user || !res.data.access_token) {
+        throw { message: "Phản hồi từ server không hợp lệ" };
+      }
 
-  const logout = () => setUser(null)
+      setUser(res.data.user);
 
-  const value = useMemo(() => ({ user, login, register, logout }), [user])
+      // Luôn lưu token để có thể gọi API
+      // Nếu remember = true: lưu vào localStorage (persist)
+      // Nếu remember = false: lưu vào sessionStorage (chỉ trong session)
+      if (remember) {
+        localStorage.setItem("user_token", res.data.access_token);
+        sessionStorage.removeItem("user_token"); // Xóa sessionStorage nếu có
+      } else {
+        sessionStorage.setItem("user_token", res.data.access_token);
+        localStorage.removeItem("user_token"); // Xóa localStorage nếu có
+      }
+    } catch (err: any) {
+      // Trả về toàn bộ error response để frontend xử lý
+      if (err.response?.data) {
+        throw err.response.data;
+      }
+      throw { message: err.message || "Login User thất bại" };
+    }
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  const registerUser = async (name: string, email: string, password: string) => {
+    try {
+      const res = await userApi.post("/register", { name, email, password });
+      return res.data;
+    } catch (err: any) {
+      // Trả về toàn bộ error response để frontend xử lý
+      if (err.response?.data) {
+        throw err.response.data;
+      }
+      throw { message: "Đăng ký User thất bại", errors: {} };
+    }
+  };
+
+  const logoutUser = () => {
+    setUser(null);
+    localStorage.removeItem("user_token");
+    sessionStorage.removeItem("user_token");
+  };
+
+  // -------------------- Admin --------------------
+  const loginAdmin = async (email: string, password: string, remember = false) => {
+    try {
+      const res = await adminApi.post<{ admin: Admin; access_token: string }>("/admin/login", { email, password });
+      setAdmin(res.data.admin);
+      if (remember) localStorage.setItem("admin_token", res.data.access_token);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) throw err.response?.data || { message: "Login Admin thất bại" };
+      throw { message: "Login Admin thất bại" };
+    }
+  };
+
+  const registerAdmin = async (name: string, email: string, password: string) => {
+    try {
+      await adminApi.post("/admin/register", { name, email, password });
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) throw err.response?.data || { message: "Đăng ký Admin thất bại" };
+      throw { message: "Đăng ký Admin thất bại" };
+    }
+  };
+
+  const logoutAdmin = () => {
+    setAdmin(null);
+    localStorage.removeItem("admin_token");
+  };
+
+  const refreshUser = async () => {
+    const userToken = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+    if (userToken) {
+      try {
+        const res = await userApi.get<{ user: User }>("/user-profile");
+        setUser(res.data.user);
+      } catch (err) {
+        console.error("Refresh user failed", err);
+        setUser(null);
+        localStorage.removeItem("user_token");
+        sessionStorage.removeItem("user_token");
+      }
+    }
+  };
+
+  // -------------------- Init Auth --------------------
+  useEffect(() => {
+    const initAuth = async () => {
+      // Kiểm tra token từ cả localStorage và sessionStorage
+      const userToken = localStorage.getItem("user_token") || sessionStorage.getItem("user_token");
+      const adminToken = localStorage.getItem("admin_token");
+
+      if (userToken) {
+        await refreshUser();
+      }
+
+      if (adminToken) {
+        try {
+          const res = await adminApi.get<{ admin: Admin }>("/admin/profile");
+          setAdmin(res.data.admin);
+        } catch {
+          localStorage.removeItem("admin_token");
+        }
+      }
+
+      setLoading(false);
+    };
+
+    initAuth();
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, admin, loading, loginUser, registerUser, loginAdmin, registerAdmin, logoutUser, logoutAdmin, refreshUser }),
+    [user, admin, loading]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-

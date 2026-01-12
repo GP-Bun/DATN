@@ -1,3 +1,4 @@
+// src/admin/components/Sidebar.tsx
 import { NavLink } from "react-router-dom";
 
 const Sidebar = () => {
@@ -6,6 +7,8 @@ const Sidebar = () => {
     { name: "Sản phẩm", path: "/admin/products", icon: "📦" },
     { name: "Đơn hàng", path: "/admin/orders", icon: "📋" },
     { name: "Người dùng", path: "/admin/users", icon: "👥" },
+    { name: "Đánh giá", path: "/admin/reviews", icon: "💬" },
+    { name: "Hỗ trợ chat", path: "/admin/chat", icon: "🎧" },
   ];
 
   return (
