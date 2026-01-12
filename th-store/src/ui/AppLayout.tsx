@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import { useCart } from '../store/CartContext'
 import ChatBot from './ChatBot'
@@ -6,9 +6,23 @@ import ChatBot from './ChatBot'
 export default function AppLayout() {
   const { user, logoutUser } = useAuth()
   const { getTotalItems } = useCart()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Chỉ hiện nút quay lại nếu không phải trang chủ
+  const isHomePage = location.pathname === '/'
 
   return (
     <div className="app-container">
+      {!isHomePage && (
+        <button
+          onClick={() => navigate(-1)}
+          className="floating-back-btn"
+          title="Quay lại"
+        >
+          <span style={{ fontSize: '20px' }}>←</span>
+        </button>
+      )}
       <header className="header">
         <div className="brand">
           <Link to="/">

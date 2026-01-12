@@ -33,7 +33,7 @@ class ChatController extends Controller
         $conversation = Conversation::findOrFail($request->conversation_id);
         
         $message = $conversation->messages()->create([
-            'sender_id'   => auth()->id() ?? 1, // Fallback nếu chưa auth đúng guard
+            'sender_id'   => session('admin_user_id') ?? 1, // Sử dụng session thay vì auth()
             'receiver_id' => $conversation->user_id,
             'content'     => $request->content,
             'is_bot'      => false

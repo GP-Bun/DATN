@@ -392,8 +392,7 @@ export default function ProductDetailPage() {
     <div className="main">
       <div className="product-detail-container">
         <div className="product-detail">
-
-          {/* ẢNH - Gallery */}
+          {/* Main Image */}
           <div className="product-image-section">
             {/* Main Image */}
             <div className="product-image-wrapper">

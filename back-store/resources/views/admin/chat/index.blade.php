@@ -57,11 +57,31 @@
 </div>
 
 <style>
-    .chat-item:hover { background-color: #f8fafc; cursor: pointer; }
-    .active-chat { background-color: #e2e8f0 !important; border-left: 4px solid #3b82f6; }
-    .message { max-width: 75%; padding: 10px 15px; border-radius: 15px; margin-bottom: 5px; }
-    .message-sent { align-self: flex-end; background-color: #3b82f6; color: white; border-bottom-right-radius: 2px; }
-    .message-received { align-self: flex-start; background-color: #e2e8f0; color: #1e293b; border-bottom-left-radius: 2px; }
+    .chat-item:hover { background-color: #f8fafc; cursor: pointer; transition: background 0.2s; }
+    .active-chat { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; }
+    .message { 
+        padding: 12px 18px; 
+        border-radius: 18px; 
+        font-size: 14px; 
+        line-height: 1.5; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        display: inline-block;
+        word-wrap: break-word;
+    }
+    .message-sent { 
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+        color: white; 
+        border-bottom-right-radius: 4px; 
+    }
+    .message-received { 
+        background-color: white; 
+        color: #1e293b; 
+        border-bottom-left-radius: 4px; 
+        border: 1px solid #e2e8f0;
+    }
+    #messages-container::-webkit-scrollbar { width: 6px; }
+    #messages-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    #messages-container { scroll-behavior: smooth; }
 </style>
 
 @section('scripts')
@@ -90,16 +110,27 @@
         try {
             const response = await fetch(`/admin/chat/${currentConvId}/messages`);
             const messages = await response.json();
+            const adminId = {{ session('admin_user_id') ?? 0 }};
             
             const container = document.getElementById('messages-container');
-            container.innerHTML = messages.map(msg => `
-                <div class="message ${msg.sender_id != {{ auth()->id() ?? 0 }} ? 'message-received' : 'message-sent'}">
-                    ${msg.content}
-                    <div style="font-size: 10px; opacity: 0.7; text-align: right;">
-                        ${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            container.innerHTML = messages.map(msg => {
+                const isMe = msg.sender_id == adminId;
+                return `
+                    <div class="d-flex ${isMe ? 'justify-content-end' : 'justify-content-start'} mb-3">
+                        <div class="message-wrapper d-flex flex-column ${isMe ? 'align-items-end' : 'align-items-start'}" style="max-width: 75%;">
+                            <div class="message-label mb-1" style="font-size: 11px; color: #64748b; font-weight: 600; ${isMe ? 'margin-right: 5px;' : 'margin-left: 5px;'}">
+                                ${isMe ? 'Bạn (Admin)' : 'Khách hàng'}
+                            </div>
+                            <div class="message ${isMe ? 'message-sent' : 'message-received'}">
+                                ${msg.content}
+                            </div>
+                            <div class="message-time mt-1" style="font-size: 10px; opacity: 0.6; ${isMe ? 'text-align: right;' : 'text-align: left;'}">
+                                ${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             container.scrollTop = container.scrollHeight;
         } catch (error) {

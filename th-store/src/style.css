@@ -19,6 +19,38 @@
   --gradient-light: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
+.floating-back-btn {
+  position: fixed;
+  top: 90px;
+  left: 20px;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  color: var(--text);
+  animation: scaleIn 0.3s ease-out;
+}
+
+.floating-back-btn:hover {
+  transform: scale(1.1) translateX(-5px);
+  background: var(--gradient);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.floating-back-btn:active {
+  transform: scale(0.95);
+}
+
 * {
   box-sizing: border-box
 }

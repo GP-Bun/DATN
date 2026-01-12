@@ -180,31 +180,69 @@ export default function ChatSupport() {
                                 </div>
                             </div>
 
-                            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#f9fafb' }}>
-                                {messages.map(msg => {
-                                    const isMe = msg.sender_id === conversations.find(c => c.id === selectedId)?.admin_id; // Check logic carefully
-                                    // Better logic: if sender_id matches the USER id of the conversation, it's incoming. Otherwise it's outgoing.
+                            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: '#f3f4f6' }}>
+                                {messages.map((msg, index) => {
                                     const currentConv = conversations.find(c => c.id === selectedId);
-                                    const isIncoming = msg.sender_id === currentConv?.user_id;
+                                    // Use loose equality or explicit conversion to handle potential string/number mismatches from API
+                                    const isIncoming = currentConv && (Number(msg.sender_id) === Number(currentConv.user_id)); // Message from Customer
+                                    const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
 
                                     return (
                                         <div
                                             key={msg.id}
                                             style={{
                                                 alignSelf: isIncoming ? 'flex-start' : 'flex-end',
-                                                maxWidth: '70%',
-                                                padding: '12px 16px',
-                                                borderRadius: '12px',
-                                                background: isIncoming ? 'white' : '#3b82f6',
-                                                color: isIncoming ? '#1f2937' : 'white',
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                                borderTopLeftRadius: isIncoming ? '0' : '12px',
-                                                borderTopRightRadius: isIncoming ? '12px' : '0'
+                                                display: 'flex',
+                                                flexDirection: isIncoming ? 'row' : 'row-reverse',
+                                                alignItems: 'flex-end',
+                                                gap: '8px',
+                                                maxWidth: '80%'
                                             }}
                                         >
-                                            <div style={{ fontSize: '14px', lineHeight: '1.5' }}>{msg.content}</div>
-                                            <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7, textAlign: 'right' }}>
-                                                {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                            {/* Avatar */}
+                                            <div style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '50%',
+                                                background: isIncoming ? '#e5e7eb' : '#3b82f6',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                color: isIncoming ? '#6b7280' : 'white',
+                                                flexShrink: 0,
+                                                opacity: showAvatar ? 1 : 0 // Preserve space if grouped
+                                            }}>
+                                                {isIncoming
+                                                    ? (currentConv?.user?.name?.charAt(0).toUpperCase() || 'C')
+                                                    : 'A' // Admin
+                                                }
+                                            </div>
+
+                                            {/* Message Bubble */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isIncoming ? 'flex-start' : 'flex-end' }}>
+                                                {showAvatar && (
+                                                    <span style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px', marginLeft: isIncoming ? '4px' : 0, marginRight: !isIncoming ? '4px' : 0 }}>
+                                                        {isIncoming ? currentConv?.user?.name : 'Bạn'}
+                                                    </span>
+                                                )}
+                                                <div style={{
+                                                    padding: '12px 16px',
+                                                    borderRadius: isIncoming ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
+                                                    background: isIncoming ? 'white' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                                    color: isIncoming ? '#1f2937' : 'white',
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                    fontSize: '14px',
+                                                    lineHeight: '1.5',
+                                                    position: 'relative',
+                                                    border: isIncoming ? '1px solid #e5e7eb' : 'none'
+                                                }}>
+                                                    {msg.content}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px', opacity: 0.8 }}>
+                                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </div>
                                         </div>
                                     );
