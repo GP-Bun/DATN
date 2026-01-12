@@ -10,6 +10,15 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $accountType = session('admin_account_type');
+        $isAdmin = $accountType === 'admin';
+
+        // Nếu là Staff, chỉ hiển thị dashboard đơn giản (không có thống kê doanh thu)
+        if (!$isAdmin) {
+            return view('admin.dashboard-staff');
+        }
+
+        // Còn lại là Admin - hiển thị đầy đủ thống kê
         $defaultData = [
             'topStats' => [
                 'yearRevenue' => 486000000,
@@ -20,9 +29,21 @@ class DashboardController extends Controller
                 'customerGrowthPercent' => 8.1,
             ],
             'chart' => [
-                'daily7'  => [20,35,30,50,45,60,70],
-                'monthly' => [25,30,28,35,40,38,42,45,48,52,50,55],
-                'yearly5' => [40,55,60,70,85],
+                'daily7' => [
+                    'percent' => [20,35,30,50,45,60,70],
+                    'raw' => [2000000,3500000,3000000,5000000,4500000,6000000,7000000],
+                    'labels' => ['06/01','07/01','08/01','09/01','10/01','11/01','12/01'],
+                ],
+                'monthly' => [
+                    'percent' => [25,30,28,35,40,38,42,45,48,52,50,55],
+                    'raw' => [25000000,30000000,28000000,35000000,40000000,38000000,42000000,45000000,48000000,52000000,50000000,55000000],
+                    'labels' => ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'],
+                ],
+                'yearly5' => [
+                    'percent' => [40,55,60,70,85],
+                    'raw' => [200000000,275000000,300000000,350000000,425000000],
+                    'labels' => ['2022','2023','2024','2025','2026'],
+                ],
             ],
             'conversion' => [
                 'done' => 68,
@@ -50,9 +71,37 @@ class DashboardController extends Controller
         try {
             $serviceData = DashboardService::getData();
 
-            // đảm bảo có dữ liệu thật
-            if (!empty($serviceData['topStats']['orderCount'])) {
-                $data = array_replace_recursive($defaultData, $serviceData);
+            // Kiểm tra xem có dữ liệu thật không
+            $hasRealData = !empty($serviceData['topStats']['orderCount']) && $serviceData['topStats']['orderCount'] > 0;
+
+            if ($hasRealData) {
+                // Merge dữ liệu, giữ lại default nếu service trả về mảng rỗng
+                $data = $defaultData;
+
+                // Cập nhật topStats
+                $data['topStats'] = array_merge($data['topStats'], $serviceData['topStats']);
+
+                // Cập nhật chart - chỉ ghi đè nếu có dữ liệu thực
+                foreach (['daily7', 'monthly', 'yearly5'] as $chartType) {
+                    if (!empty($serviceData['chart'][$chartType]['percent']) &&
+                        array_sum($serviceData['chart'][$chartType]['percent']) > 0) {
+                        $data['chart'][$chartType] = $serviceData['chart'][$chartType];
+                    }
+                }
+
+                // Cập nhật các phần khác
+                if (!empty($serviceData['conversion'])) {
+                    $data['conversion'] = $serviceData['conversion'];
+                }
+                if (!empty($serviceData['recentOrders']) && count($serviceData['recentOrders']) > 0) {
+                    $data['recentOrders'] = $serviceData['recentOrders']->toArray();
+                }
+                if (!empty($serviceData['topMonths']) && count($serviceData['topMonths']) > 0) {
+                    $data['topMonths'] = $serviceData['topMonths']->toArray();
+                }
+                if (!empty($serviceData['quickStats'])) {
+                    $data['quickStats'] = array_merge($data['quickStats'], $serviceData['quickStats']);
+                }
             } else {
                 $data = $defaultData;
             }

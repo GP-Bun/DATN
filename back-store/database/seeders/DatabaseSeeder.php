@@ -21,11 +21,14 @@ class DatabaseSeeder extends Seeder
         // Gọi CouponSeeder để tạo mã giảm giá
         $this->call(CouponSeeder::class);
 
-        
+
 
         $this->call([
             ProductStockSeeder::class,
             ReviewSeeder::class,
         ]);
+
+        // Tạo tài khoản admin + staff
+        $this->call(\Database\Seeders\AdminStaffSeeder::class);
     }
 }

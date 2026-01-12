@@ -13,9 +13,26 @@ class Admin extends Authenticatable
         'name',
         'email',
         'password',
+        'active',
     ];
 
     protected $hidden = [
         'password',
     ];
+
+    protected $casts = [
+        'active' => 'boolean',
+    ];
+
+    // Admin có tất cả quyền
+    public function hasPermission(string $permission): bool
+    {
+        return true; // Admin có full quyền
+    }
+
+    // Lấy loại tài khoản
+    public function getAccountType(): string
+    {
+        return 'admin';
+    }
 }
