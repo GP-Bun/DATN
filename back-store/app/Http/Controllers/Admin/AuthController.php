@@ -4,44 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\User;
+use App\Models\Admin;
+use App\Models\Staff;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    // Đăng ký Admin
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-        ], [
-            'name.required' => 'Tên không được để trống',
-            'name.string'   => 'Tên phải là chuỗi ký tự',
-            'name.max'      => 'Tên không được vượt quá 255 ký tự',
-
-            'email.required' => 'Email không được để trống',
-            'email.email'    => 'Email phải là email hợp lệ',
-            'email.unique'   => 'Email đã tồn tại',
-
-            'password.required' => 'Mật khẩu không được để trống',
-            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
-            'password.min'      => 'Mật khẩu phải có ít nhất 6 ký tự',
-        ]);
-
-        $admin = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'admin',
-            'active'   => 1,
-        ]);
-
-        return response()->json(['admin' => $admin], 201);
-    }
-
-    // Đăng nhập Admin
+    // Đăng nhập Admin hoặc Nhân viên
     public function login(Request $request)
     {
         $request->validate([
@@ -51,26 +20,111 @@ class AuthController extends Controller
             'email.required'    => 'Email không được để trống',
             'email.email'       => 'Email phải là email hợp lệ',
             'password.required' => 'Mật khẩu không được để trống',
-            'password.string'   => 'Mật khẩu phải là chuỗi ký tự',
         ]);
 
-        $admin = User::where('email', $request->email)
-            ->where('role', 'admin')
-            ->where('active', 1)
+        // Thử tìm trong bảng admins trước
+        $admin = Admin::where('email', $request->email)
+            ->where('active', true)
             ->first();
 
-        if (!$admin || !Hash::check($request->password, $admin->password)) {
+        // Nếu không tìm thấy, thử tìm trong bảng staffs
+        $staff = null;
+        if (!$admin) {
+            $staff = Staff::where('email', $request->email)
+                ->where('active', true)
+                ->first();
+        }
+
+        // Xác định tài khoản phù hợp
+        $actor = $admin ?? $staff;
+        $accountType = $admin ? 'admin' : ($staff ? 'staff' : null);
+
+        if (!$actor || !Hash::check($request->password, $actor->password)) {
             return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
         }
-        
 
-        $token = $admin->createToken('admin_token')->plainTextToken;
+        $token = $actor->createToken('admin_token')->plainTextToken;
 
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'Bearer',
-            'admin'        => $admin
+            'account_type' => $accountType,
+            'user'         => [
+                'id'    => $actor->id,
+                'name'  => $actor->name,
+                'email' => $actor->email,
+            ],
+            'permissions' => $this->getPermissions($actor),
         ]);
+    }
+
+    // Lấy thông tin người dùng hiện tại
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        $accountType = $user instanceof Admin ? 'admin' : 'staff';
+
+        return response()->json([
+            'account_type' => $accountType,
+            'user' => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+            ],
+            'permissions' => $this->getPermissions($user),
+        ]);
+    }
+
+    // Lấy danh sách quyền của user
+    private function getPermissions($user): array
+    {
+        $allPermissions = [
+            // Dashboard
+            'view_dashboard',
+
+            // Sản phẩm
+            'view_products',
+            'create_products',
+            'edit_products',
+            'delete_products',
+
+            // Danh mục
+            'view_categories',
+            'manage_categories',
+
+            // Đơn hàng
+            'view_orders',
+            'update_orders',
+            'confirm_orders',
+            'delete_orders',
+
+            // Đánh giá
+            'view_reviews',
+            'reply_reviews',
+            'delete_reviews',
+
+            // Mã giảm giá
+            'view_coupons',
+            'manage_coupons',
+
+            // Thống kê
+            'view_statistics',
+            'view_revenue',
+
+            // Quản lý tài khoản
+            'manage_users',
+            'manage_staff',
+            'manage_admins',
+        ];
+
+        $permissions = [];
+        foreach ($allPermissions as $permission) {
+            if ($user->hasPermission($permission)) {
+                $permissions[] = $permission;
+            }
+        }
+
+        return $permissions;
     }
 
     // Logout
@@ -83,6 +137,6 @@ class AuthController extends Controller
     // Dashboard
     public function dashboard()
     {
-        return response()->json(['message' => 'Chào mừng Admin!']);
+        return response()->json(['message' => 'Chào mừng bạn đến trang quản trị!']);
     }
 }

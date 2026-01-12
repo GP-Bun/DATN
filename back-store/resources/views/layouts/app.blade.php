@@ -144,17 +144,25 @@
         class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <i class="bi bi-speedometer2"></i> Dashboard
         </a>
+
+        {{-- Danh mục - Chỉ admin --}}
+        @if(session('admin_account_type') === 'admin')
         <a href="{{ route('admin.categories.index') }}"
             class="{{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
             <i class="bi bi-folder"></i> Danh mục
         </a>
+        @endif
         <a href="{{ route('admin.products.index') }}"
             class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
             <i class="bi bi-box"></i> Sản phẩm
         </a>
+
+        {{-- Người dùng - Chỉ admin --}}
+        @if(session('admin_account_type') === 'admin')
         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
             <i class="bi bi-people"></i> Người dùng
         </a>
+        @endif
 
         {{-- <!-- Thêm quản lý tài khoản -->
         <a href="{{ route('admin.accounts.index') }}"
@@ -167,11 +175,13 @@
             <i class="bi bi-cart-check"></i> Đơn hàng
         </a>
 
-        {{-- mã giảm giá --}}
+        {{-- Voucher - Chỉ admin --}}
+        @if(session('admin_account_type') === 'admin')
         <a href="{{ route('admin.coupons.index') }}"
             class="{{ request()->routeIs('admin.coupons.*') ? 'active' : '' }}">
             <i class="bi bi-ticket-perforated"></i> Voucher
         </a>
+        @endif
 
         {{-- Quản lý đánh giá --}}
         <a href="{{ route('admin.reviews.index') }}"
@@ -189,24 +199,55 @@
 
     <!-- Main Content -->
     <div class="main-content" id="main-content">
-        <nav class="navbar navbar-dark mb-3 px-3 d-flex justify-content-between">
-            <span class="navbar-brand mb-0 h1">@yield('title')</span>
-            <button class="btn btn-outline-light d-md-none" id="sidebar-toggle">
-                <i class="bi bi-list"></i>
-            </button>
+        <nav class="navbar navbar-dark mb-3 px-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-light d-md-none" id="sidebar-toggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <span class="navbar-brand mb-0 h1">@yield('title')</span>
+            </div>
+
+            {{-- User info và logout --}}
+            <div class="d-flex align-items-center gap-3">
+                @if(session('admin_logged_in'))
+                    <div class="text-white d-flex align-items-center gap-2">
+                        <i class="bi bi-person-circle" style="font-size: 24px;"></i>
+                        <div class="d-none d-sm-block">
+                            <div style="font-size: 14px; font-weight: 500;">{{ session('admin_user_name') }}</div>
+                            <div style="font-size: 11px; opacity: 0.7;">
+                                @if(session('admin_account_type') === 'admin')
+                                    <span class="badge bg-primary">Admin</span>
+                                @else
+                                    <span class="badge bg-success">Nhân viên</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <form action="{{ route('admin.logout') }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span class="d-none d-sm-inline">Đăng xuất</span>
+                        </button>
+                    </form>
+                @endif
+            </div>
         </nav>
 
-        {{-- @if (session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
+        {{-- Thông báo --}}
+        @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         @endif
 
         @if (session('error'))
-            <div class="alert alert-danger">
-                {{ session('error') }}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-        @endif --}}
+        @endif
 
         {{-- Responsive wrapper cho bảng/form --}}
         <div class="table-responsive">

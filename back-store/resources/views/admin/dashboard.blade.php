@@ -71,7 +71,7 @@ function money($v){
         </div>
       </div>
 
-      <div id="barChart" class="bar-chart"></div>
+      <div id="barChart"></div>
     </div>
 
 
@@ -141,19 +141,56 @@ const chartData = @json($data['chart']);
 const chartEl = document.getElementById('barChart');
 const tabs = document.querySelectorAll('.tab');
 
+function formatMoney(value) {
+  if (value >= 1000000000) {
+    return (value / 1000000000).toFixed(1) + ' tỷ';
+  } else if (value >= 1000000) {
+    return (value / 1000000).toFixed(1) + ' tr';
+  } else if (value >= 1000) {
+    return (value / 1000).toFixed(0) + 'k';
+  }
+  return value.toLocaleString('vi-VN') + 'đ';
+}
+
 function renderChart(type) {
   chartEl.innerHTML = '';
 
-  chartData[type].forEach((v, i) => {
+  const data = chartData[type];
+  const percentArr = data.percent || data;
+  const rawArr = data.raw || percentArr;
+  const labels = data.labels || [];
+
+  // Đảm bảo có ít nhất 1 cột hiển thị
+  const maxPercent = Math.max(...percentArr, 1);
+
+  percentArr.forEach((v, i) => {
+    const barWrapper = document.createElement('div');
+    barWrapper.className = 'bar-wrapper';
+
     const bar = document.createElement('div');
     bar.className = 'bar';
 
     const fill = document.createElement('div');
     fill.className = 'bar-fill';
-    fill.style.height = v + '%';
+    // Đảm bảo chiều cao tối thiểu 5% nếu có giá trị
+    const height = v > 0 ? Math.max(v, 5) : (rawArr[i] > 0 ? 10 : 0);
+    fill.style.height = height + '%';
+
+    // Tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'bar-tooltip';
+    tooltip.textContent = formatMoney(rawArr[i] || 0);
+
+    // Label
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = labels[i] || '';
 
     bar.appendChild(fill);
-    chartEl.appendChild(bar);
+    bar.appendChild(tooltip);
+    barWrapper.appendChild(bar);
+    barWrapper.appendChild(label);
+    chartEl.appendChild(barWrapper);
   });
 }
 
@@ -168,5 +205,90 @@ tabs.forEach(tab => {
 // mặc định 7 ngày
 renderChart('daily7');
 </script>
+
+<style>
+#barChart {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-around !important;
+  gap: 12px !important;
+  height: 220px !important;
+  padding: 20px 10px 10px !important;
+}
+
+#barChart .bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 80px;
+  height: 100%;
+}
+
+#barChart .bar {
+  width: 100%;
+  height: 180px;
+  background: #eaeaf5;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+  position: relative;
+  cursor: pointer;
+  overflow: visible;
+}
+
+#barChart .bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #667eea 0%, #4ade80 100%);
+  border-radius: 8px;
+  transition: height 0.3s ease;
+  min-height: 4px;
+}
+
+#barChart .bar-tooltip {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+
+#barChart .bar-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #1e293b;
+}
+
+#barChart .bar:hover .bar-tooltip {
+  opacity: 1;
+}
+
+#barChart .bar:hover .bar-fill {
+  background: linear-gradient(180deg, #764ba2 0%, #22c55e 100%);
+}
+
+#barChart .bar-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #374151;
+  font-weight: 600;
+  text-align: center;
+}
+</style>
 
 @endsection

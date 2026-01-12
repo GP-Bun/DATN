@@ -67,12 +67,11 @@ Route::middleware('auth:sanctum')->group(function () {
 // Admin routes
 Route::prefix('admin')->group(function () {
     Route::post('login', [AdminAuthController::class, 'login']);
-    Route::post('register', [AdminAuthController::class, 'register']);
 
     Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('dashboard', [AdminAuthController::class, 'dashboard']);
+        Route::get('me', [AdminAuthController::class, 'me']);
         Route::post('logout', [AdminAuthController::class, 'logout']);
-        Route::get('profile', fn(Request $request) => response()->json(['admin' => $request->user()]));
     });
 });
 
@@ -182,10 +181,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 });
 
 Route::prefix('geo')->group(function () {
-    // Lấy danh sách tỉnh/thành (34 tỉnh theo dữ liệu JSON) 
+    // Lấy danh sách tỉnh/thành (34 tỉnh theo dữ liệu JSON)
     Route::get('provinces', [ProvinceController::class, 'index']);
-    // Lấy danh sách quận/huyện theo province_id 
+    // Lấy danh sách quận/huyện theo province_id
     Route::get('districts', [DistrictController::class, 'index']);
-    // Lấy danh sách xã/phường theo district_id 
+    // Lấy danh sách xã/phường theo district_id
     Route::get('wards', [WardController::class, 'index']);
 });

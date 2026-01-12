@@ -34,6 +34,7 @@ class DashboardService
          * REVENUE LAST 7 DAYS
          * =============================== */
         $daily7Raw = [];
+        $daily7Labels = [];
         $maxDay = 1;
 
         for ($i = 6; $i >= 0; $i--) {
@@ -45,6 +46,7 @@ class DashboardService
                 ->sum('final_amount');
 
             $daily7Raw[] = $total;
+            $daily7Labels[] = $date->format('d/m');
             $maxDay = max($maxDay, $total);
         }
 
@@ -57,6 +59,7 @@ class DashboardService
          * REVENUE BY MONTH (12 MONTHS)
          * =============================== */
         $monthlyRaw = [];
+        $monthlyLabels = [];
         $maxMonthChart = 1;
 
         for ($m = 1; $m <= 12; $m++) {
@@ -67,6 +70,7 @@ class DashboardService
                 ->sum('final_amount');
 
             $monthlyRaw[] = $total;
+            $monthlyLabels[] = 'T' . $m;
             $maxMonthChart = max($maxMonthChart, $total);
         }
 
@@ -79,6 +83,7 @@ class DashboardService
          * REVENUE LAST 5 YEARS
          * =============================== */
         $yearlyRaw = [];
+        $yearlyLabels = [];
         $maxYear = 1;
 
         for ($y = $year - 4; $y <= $year; $y++) {
@@ -88,6 +93,7 @@ class DashboardService
                 ->sum('final_amount');
 
             $yearlyRaw[] = $total;
+            $yearlyLabels[] = (string) $y;
             $maxYear = max($maxYear, $total);
         }
 
@@ -163,7 +169,23 @@ class DashboardService
                 'orderAvgPerMonth' => round($orderCount / 12),
                 'customerGrowthPercent' => 8.1,
             ],
-            'chart' => compact('daily7', 'monthly', 'yearly5'),
+            'chart' => [
+                'daily7' => [
+                    'percent' => $daily7,
+                    'raw' => $daily7Raw,
+                    'labels' => $daily7Labels,
+                ],
+                'monthly' => [
+                    'percent' => $monthly,
+                    'raw' => $monthlyRaw,
+                    'labels' => $monthlyLabels,
+                ],
+                'yearly5' => [
+                    'percent' => $yearly5,
+                    'raw' => $yearlyRaw,
+                    'labels' => $yearlyLabels,
+                ],
+            ],
             'conversion' => [
                 'done' => round($done / $conversionTotal * 100),
                 'pending' => 100 - round($done / $conversionTotal * 100),
