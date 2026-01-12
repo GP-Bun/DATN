@@ -16,7 +16,7 @@ class ProductController extends Controller
     // ===== DANH SÁCH =====
     public function index()
     {
-        $products = Product::with('category')->latest()->paginate(10);
+        $products = Product::with(['category', 'variants.color', 'variants.size'])->latest()->paginate(10);
         $trashCount = Product::onlyTrashed()->count();
 
         return view('admin.products.index', compact('products', 'trashCount'));

@@ -14,7 +14,7 @@ class ProductController extends Controller
     // 🟦 Lấy danh sách sản phẩm
     public function index(Request $request)
     {
-        $products = Product::with(['category', 'variants'])
+        $products = Product::with(['category', 'variants.color', 'variants.size'])
             ->visible()
             ->orderBy('created_at', 'desc')
             ->paginate(10);
