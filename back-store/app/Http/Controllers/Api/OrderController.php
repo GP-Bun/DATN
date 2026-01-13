@@ -115,7 +115,7 @@ class OrderController extends Controller
             'address.district_id'   => 'required|exists:districts,id',
             'address.ward_id'       => 'required|exists:wards,id',
             'address.zip'           => 'nullable|string|max:20',
-            'payment_method'        => 'required|string|in:cod,bank_transfer',
+            'payment_method'        => 'required|string|in:cod,bank_transfer,vnpay',
             'coupon_code'           => 'nullable|string',
         ]);
 
@@ -261,9 +261,9 @@ class OrderController extends Controller
                 return response()->json([
                     'message' => 'Đặt hàng thành công! Thanh toán khi nhận hàng.',
                     'order'   => $order,
-                    'data'    => $order // For backward compatibility if needed by frontend returning res.data.data
+                    'data'    => $order 
                 ]);
-            } else {
+            } elseif ($order->payment_method === 'bank_transfer') {
                 $bankAccount = "123456789";
                 $bankName    = "Vietcombank";
                 $accountName = "CONG TY TNHH THUONG MAI";
@@ -289,6 +289,13 @@ class OrderController extends Controller
                         'order' => $order,
                         'qr_code' => $qr_code
                     ]
+                ]);
+            } else {
+                // vnpay hoặc các phương thức online khác
+                return response()->json([
+                    'message' => 'Đơn hàng đã được tạo. Đang chuyển hướng đến trang thanh toán...',
+                    'order'   => $order,
+                    'data'    => $order
                 ]);
             }
         });

@@ -29,7 +29,7 @@ class CheckoutController extends Controller
             'ward_id'      => 'required_without:address_id|exists:wards,id',
             'city'         => 'nullable|string', // Keep for backward compatibility if needed, but not used in DB
             'province'     => 'nullable|string',
-            'payment_method' => 'required|string|in:cod,bank_transfer',
+            'payment_method' => 'required|string|in:cod,bank_transfer,vnpay',
             'coupon_code'  => 'nullable|string',
             'cart_item_ids' => 'nullable|array',
             'cart_item_ids.*' => 'integer|exists:cart_items,id',

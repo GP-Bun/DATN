@@ -22,10 +22,23 @@ class VnpayController extends Controller
         $vnp_HashSecret = config('vnpay.hash_secret');
         $vnp_Url = config('vnpay.url');
 
-        if (!$vnp_TmnCode || !$vnp_HashSecret || !$vnp_Url) {
+        // Kiểm tra và báo lỗi chi tiết
+        $missing = [];
+        if (empty($vnp_TmnCode)) {
+            $missing[] = 'VNPAY_TMN_CODE';
+        }
+        if (empty($vnp_HashSecret)) {
+            $missing[] = 'VNPAY_HASH_SECRET';
+        }
+        if (empty($vnp_Url)) {
+            $missing[] = 'VNPAY_URL';
+        }
+
+        if (!empty($missing)) {
             return response()->json([
                 'success' => false,
-                'message' => 'VNPAY chưa được thiết lập đúng'
+                'message' => 'VNPAY chưa được thiết lập đúng. Vui lòng cấu hình các biến môi trường sau trong file .env: ' . implode(', ', $missing) . '. Xem hướng dẫn tại: https://sandbox.vnpayment.vn/apis/docs/',
+                'missing_config' => $missing
             ], 500);
         }
 
@@ -113,6 +126,8 @@ class VnpayController extends Controller
             }
         }
 
-        return response()->json($response);
+        $frontendUrl = "http://localhost:5173/vnpay-return";
+        $queryString = http_build_query($request->all());
+        return redirect()->away($frontendUrl . '?' . $queryString);
     }
 }

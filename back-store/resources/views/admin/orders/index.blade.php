@@ -6,12 +6,7 @@
 <div class="bg-white p-4 rounded shadow-sm">
     <h4 class="mb-4">📦 Quản lý đơn hàng</h4>
 
-    {{-- Thông báo --}}
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
 
-    {{-- Bộ lọc --}}
     <div class="card mb-4 shadow-sm border border-primary border-2">
         <div class="card-body">
             <h5 class="card-title mb-3">🔍 Bộ lọc đơn hàng</h5>
@@ -83,6 +78,7 @@
                     <th>Khách hàng</th>
                     <th>Tổng tiền</th>
                     <th>Trạng thái</th>
+                    <th>Thanh toán</th>
                     <th>Hành động</th>
                 </tr>
             </thead>
@@ -93,26 +89,47 @@
                     <td>{{ $o->user?->name ?? 'Khách ẩn' }}</td>
                     <td class="text-primary fw-bold">{{ number_format($o->final_amount, 0, ',', '.') }}đ</td>
                     <td class="text-center">
-                        @php
-                            $statusColors = [
-                                'pending' => 'warning',
-                                'processing' => 'info',
-                                'shipped' => 'primary',
-                                'delivered' => 'success',
-                                'cancelled' => 'danger',
-                            ];
-                            $statusIcons = [
-                                'pending' => '⏳',
-                                'processing' => '🔄',
-                                'shipped' => '🚚',
-                                'delivered' => '✅',
-                                'cancelled' => '❌',
-                            ];
-                        @endphp
-                        <span class="badge bg-{{ $statusColors[$o->order_status] ?? 'secondary' }}">
-                            {{ $statusIcons[$o->order_status] ?? '' }} {{ ucfirst($o->order_status) }}
+                            @php
+                                $statusMap = [
+                                    'pending' => ['label' => 'Chờ xử lý', 'color' => 'warning', 'icon' => '⏳'],
+                                    'processing' => ['label' => 'Đang xử lý', 'color' => 'info', 'icon' => '🔄'],
+                                    'shipped' => ['label' => 'Đã gửi hàng', 'color' => 'primary', 'icon' => '🚚'],
+                                    'delivered' => ['label' => 'Đã giao', 'color' => 'success', 'icon' => '✅'],
+                                    'cancelled' => ['label' => 'Đã hủy', 'color' => 'danger', 'icon' => '❌'],
+                                ];
+
+                                $status = $statusMap[$o->order_status] ?? [
+                                    'label' => 'Không xác định',
+                                    'color' => 'secondary',
+                                    'icon' => '❓'
+                                ];
+                            @endphp
+                     
+                            <span class="badge bg-{{ $status['color'] }}">
+                                {{ $status['icon'] }} {{ $status['label'] }}
+                            </span>
+                    </td>
+                    <td class="text-center">
+                            @php
+                                $paymentMap = [
+                                    'pending' => ['label' => 'Chưa thanh toán', 'color' => 'warning', 'icon' => '⏳'],
+                                    'paid' => ['label' => 'Đã thanh toán', 'color' => 'success', 'icon' => '💰'],
+                                    'failed' => ['label' => 'Thất bại', 'color' => 'danger', 'icon' => '❌'],
+                                    'refunded' => ['label' => 'Hoàn tiền', 'color' => 'info', 'icon' => '🔄'],
+                                ];
+
+                                $pay = $paymentMap[$o->payment_status] ?? [
+                                    'label' => 'Không xác định',
+                                    'color' => 'secondary',
+                                    'icon' => '❓'
+                                ];
+                            @endphp
+
+                        <span class="badge bg-{{ $pay['color'] }}">
+                            {{ $pay['icon'] }} {{ $pay['label'] }}
                         </span>
                     </td>
+
                     <td class="text-center">
                         <a href="{{ route('admin.orders.show', $o->id) }}" class="btn btn-sm btn-outline-primary me-1" title="Xem chi tiết">
                             👁️ Xem

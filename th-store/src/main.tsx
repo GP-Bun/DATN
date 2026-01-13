@@ -22,7 +22,8 @@ import {
   RegisterPage,
   ProfilePage,
   OrdersPage,
-  AboutPage
+  AboutPage,
+  VnPayReturnPage
 } from './pages';
 import TestApiPage from './pages/TestApi';
 
@@ -59,6 +60,7 @@ const routerConfig = [
       { path: 'tai-khoan', element: <ProfilePage /> },
       { path: 'don-hang', element: <OrdersPage /> },
       { path: 'gioi-thieu', element: <AboutPage /> },
+      { path: 'vnpay-return', element: <VnPayReturnPage /> },
       { path: 'test-api', element: <TestApiPage /> },
     ],
   },

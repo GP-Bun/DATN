@@ -6,10 +6,6 @@
     <div class="bg-white p-4 rounded shadow-sm">
         <h4 class="mb-3">Danh sách voucher</h4>
 
-        @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
-
         <div class="mb-3">
             <a href="{{ route('admin.coupons.create') }}" class="btn btn-primary">
                 + Thêm voucher

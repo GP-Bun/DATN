@@ -268,7 +268,7 @@ export default function CheckoutPage() {
       province_id: selectedProvince?.id,
       district_id: selectedDistrict?.id,
       ward_id: selectedWard?.id,
-      payment_method: formData.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'cod'
+      payment_method: formData.paymentMethod as 'bank_transfer' | 'cod' | 'vnpay'
     }
 
     // Thêm coupon_code nếu có
@@ -334,20 +334,70 @@ export default function CheckoutPage() {
         throw new Error('Không nhận được dữ liệu đơn hàng từ server')
       }
 
-      // Nếu là chuyển khoản và có QR code
-      // Check response.qr_code for checkout() or order.qr_code for createOrder()
-      const qrCode = (response && response.qr_code) || (order && order.qr_code);
+      if (formData.paymentMethod === 'vnpay') {
+        // VNPay Flow
+        try {
+          const vnpayRes = await api.post('/vnpay/create', { order_id: order.id });
+          
+          // Check response structure
+          if (vnpayRes.data) {
+            // Handle both response formats: { payment_url } or { data: { payment_url } }
+            const paymentUrl = vnpayRes.data.payment_url || vnpayRes.data.data?.payment_url;
+            
+            if (paymentUrl) {
+              // Clear local storage and cart before redirecting
+              if (!buyNowItem) {
+                await reloadCart()
+              }
+              localStorage.removeItem("applied_coupon");
+              localStorage.removeItem("coupon_discount");
+              localStorage.removeItem("coupon_code");
 
-      if (formData.paymentMethod === 'bank_transfer' && qrCode) {
-        setQrData(qrCode)
-        setCurrentOrder(order)
-        setShowQRModal(true)
-        setIsCheckingPayment(true)
-        startPaymentPolling(order.id)
+              // Redirect to VNPay
+              window.location.href = paymentUrl;
+            } else {
+              // Check if there's an error message from backend
+              const errorMsg = vnpayRes.data.message || 'Không lấy được link thanh toán VNPay';
+              throw new Error(errorMsg);
+            }
+          } else {
+            throw new Error('Không nhận được phản hồi từ server');
+          }
+        } catch (vnpayErr: any) {
+          console.error('VNPay error:', vnpayErr);
+          
+          // Extract error message
+          let errorMessage = 'Lỗi khởi tạo thanh toán VNPay. Vui lòng thử lại.';
+          
+          if (vnpayErr?.response?.data?.message) {
+            errorMessage = vnpayErr.response.data.message;
+            
+            // Nếu có missing_config, hiển thị chi tiết hơn
+            if (vnpayErr.response.data.missing_config && Array.isArray(vnpayErr.response.data.missing_config)) {
+              const missing = vnpayErr.response.data.missing_config.join(', ');
+              errorMessage += `\n\nThiếu cấu hình: ${missing}`;
+            }
+          } else if (vnpayErr?.message) {
+            errorMessage = vnpayErr.message;
+          }
+          
+          // Hiển thị lỗi với thời gian dài hơn để người dùng đọc được
+          toast.error(errorMessage, {
+            duration: 6000,
+            style: {
+              maxWidth: '500px',
+              whiteSpace: 'pre-line'
+            }
+          });
+          
+          // Reset submitting state
+          setIsSubmitting(false);
+          
+          // Don't navigate away - let user try again or choose different payment method
+        }
       } else {
-        // Success logic
+        // Success logic for COD
         if (!buyNowItem) {
-          // reloadCart sẽ lấy giỏ hàng mới (đã trừ các item vừa thanh toán)
           await reloadCart()
         }
 
@@ -973,6 +1023,7 @@ export default function CheckoutPage() {
               >
                 <option value="cod">Thanh toán khi nhận hàng (COD)</option>
                 <option value="bank_transfer">Chuyển khoản ngân hàng</option>
+                <option value="vnpay">Thanh toán qua VNPay</option>
               </select>
             </div>
 
