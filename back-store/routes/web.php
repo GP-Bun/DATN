@@ -18,6 +18,10 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\WebAuthController;
 use App\Http\Controllers\Admin\ChatController;
+use App\Http\Controllers\VnPayController;
+
+Route::post('/vnpay/payment', [VnPayController::class, 'createPayment'])->name('vnpay.payment');
+Route::get('/vnpay/return', [VnPayController::class, 'vnpayReturn'])->name('vnpay.return');
 
 // ==================== Public Routes ====================
 
