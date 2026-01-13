@@ -45,7 +45,7 @@
                             <form action="{{ route('admin.products.forceDelete', $p->id) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-danger">Xóa vĩnh viễn</button>
+                                
                             </form>
                         </td>
                     </tr>

@@ -53,85 +53,107 @@ class OrderController extends Controller
     }
 
     public function update(Request $request, Order $order)
-    {
-        $request->validate([
-            'order_status' => 'required|in:pending,processing,shipped,delivered,cancelled'
+{
+    $request->validate([
+        'order_status' => 'required|in:pending,processing,shipped,delivered,cancelled'
+    ]);
+
+    $current = $order->order_status;
+    $next = $request->order_status;
+
+    $allowedTransitions = [
+        'pending' => ['processing', 'cancelled'],
+        'processing' => ['shipped', 'cancelled'],
+        'shipped' => ['delivered'],
+        'delivered' => [],
+        'cancelled' => [],
+    ];
+
+    if (!in_array($next, $allowedTransitions[$current] ?? [])) {
+        return back()->withErrors([
+            'order_status' => "Không thể chuyển từ trạng thái '{$current}' sang '{$next}'."
         ]);
+    }
 
-        $current = $order->order_status;
-        $next = $request->order_status;
+    // Logic trừ tồn kho khi chuyển sang shipped (giữ nguyên)
+    if ($next === 'shipped') {
+    foreach ($order->items as $item) {
+        $product = $item->product;
 
-        // Định nghĩa luồng trạng thái hợp lệ
-        $allowedTransitions = [
-            'pending' => ['processing', 'cancelled'],
-            'processing' => ['shipped', 'cancelled'],
-            'shipped' => ['delivered'],
-            'delivered' => [],
-            'cancelled' => [],
-        ];
-
-        // Kiểm tra xem chuyển đổi có hợp lệ không 
-        if (!in_array($next, $allowedTransitions[$current] ?? [])) {
-            return back()->withErrors([
-                'order_status' => "Không thể chuyển từ trạng thái '{$current}' sang '{$next}'."
+        // Nếu sản phẩm đã bị xóa
+        if (!$product) {
+            return redirect()->back()->withErrors([
+                'order_status' => "Sản phẩm trong đơn (#{$item->id}) không tồn tại."
             ]);
         }
 
-        // Nếu admin muốn chuyển sang trạng thái "shipped"
-        if ($request->order_status === 'shipped') {
-            foreach ($order->items as $item) {
-                $product = $item->product;
-
-                // Kiểm tra sản phẩm có khả dụng không (dựa trên auto_status)
-                if ($product->auto_status != 1) {
-                    return redirect()->back()->withErrors([
-                        'order_status' => "Sản phẩm {$product->name} không khả dụng."
-                    ]);
-                }
-
-                if ($item->variant_id) {
-                    $variant = $item->variant;
-
-                    if ($variant->stock < $item->quantity) {
-                        return redirect()->back()->withErrors([
-                            'order_status' => "Biến thể {$product->name} không đủ tồn kho."
-                        ]);
-                    }
-
-                    // Trừ tồn kho biến thể
-                    $variant->stock -= $item->quantity;
-                    $variant->save();
-
-                    // Cập nhật auto_status của sản phẩm cha
-                    if ($product->variants()->where('stock', '>', 0)->exists()) {
-                        $product->auto_status = 1; // còn hàng
-                    } else {
-                        $product->auto_status = 2; // hết hàng
-                    }
-                    $product->save();
-                } else {
-                    if ($product->stock < $item->quantity) {
-                        return redirect()->back()->withErrors([
-                            'order_status' => "Sản phẩm {$product->name} không đủ tồn kho."
-                        ]);
-                    }
-
-                    // Trừ tồn kho sản phẩm
-                    $product->stock -= $item->quantity;
-                    $product->save();
-
-                    // Cập nhật auto_status
-                    $product->auto_status = $product->stock > 0 ? 1 : 2;
-                    $product->save();
-                }
-            }
+        // Kiểm tra trạng thái auto_status
+        if ($product->auto_status != 1) {
+            return redirect()->back()->withErrors([
+                'order_status' => "Sản phẩm {$product->name} không khả dụng."
+            ]);
         }
 
-        // Cập nhật trạng thái đơn hàng
-        $order->update(['order_status' => $request->order_status]);
+        if ($item->variant_id) {
+            $variant = $item->variant;
+            if (!$variant) {
+                return redirect()->back()->withErrors([
+                    'order_status' => "Biến thể của sản phẩm {$product->name} không tồn tại."
+                ]);
+            }
 
-        return redirect()->back()->with('success', 'Cập nhật trạng thái thành công!');
+            if ($variant->stock < $item->quantity) {
+                return redirect()->back()->withErrors([
+                    'order_status' => "Biến thể {$product->name} không đủ tồn kho."
+                ]);
+            }
+
+            // Trừ tồn kho
+            $variant->stock -= $item->quantity;
+            $variant->save();
+
+            // Cập nhật auto_status của sản phẩm cha
+            $product->auto_status = $product->variants()->where('stock', '>', 0)->exists() ? 1 : 2;
+            $product->save();
+        } else {
+            if ($product->stock < $item->quantity) {
+                return redirect()->back()->withErrors([
+                    'order_status' => "Sản phẩm {$product->name} không đủ tồn kho."
+                ]);
+            }
+
+            $product->stock -= $item->quantity;
+            $product->auto_status = $product->stock > 0 ? 1 : 2;
+            $product->save();
+        }
     }
+}
+
+
+    // **Cập nhật trạng thái đơn hàng**
+    $order->order_status = $next;
+
+    // **Cập nhật trạng thái thanh toán tự động**
+    if ($next === 'delivered') {
+        $order->payment_status = 'paid';
+        $order->paid_at = now();
+    } elseif ($next === 'cancelled') {
+        // Nếu đã thanh toán → hoàn tiền
+        if ($order->payment_status === 'paid') {
+            $order->payment_status = 'refunded';
+        } else {
+            // nếu chưa thanh toán → vẫn pending
+            $order->payment_status = 'pending';
+        }
+        $order->paid_at = null;
+    }
+
+    $order->save();
+
+    return redirect()->back()->with('success', 'Cập nhật trạng thái thành công!');
+}
+
+
 
 
     public function destroy(Order $order)

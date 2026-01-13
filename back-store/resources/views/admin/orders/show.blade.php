@@ -62,28 +62,35 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <form action="{{ route('admin.orders.updatePayment', $order->id) }}" method="POST">
-                                    @csrf
-                                    @method('PUT')
-                                    <select name="payment_status">
-                                        <option value="pending"
-                                            {{ $order->payment_status === 'pending' ? 'selected' : '' }}>Chưa thanh toán
-                                        </option>
-                                        <option value="paid" {{ $order->payment_status === 'paid' ? 'selected' : '' }}>Đã
-                                            thanh toán</option>
-                                        <option value="refunded"
-                                            {{ $order->payment_status === 'refunded' ? 'selected' : '' }}>Hoàn tiền
-                                        </option>
-                                    </select>
-                                    <button type="submit">Cập nhật</button>
-                                </form>
+                                <strong>💰 Trạng thái thanh toán:</strong>
+                                @php
+                                    // Logic hiển thị trạng thái thanh toán
+                                    if ($order->payment_status === 'refunded') {
+                                        $paymentLabel = 'Hoàn tiền';
+                                        $paymentClass = 'bg-danger';
+                                    } elseif ($order->payment_status === 'paid') {
+                                        $paymentLabel = 'Đã thanh toán';
+                                        $paymentClass = 'bg-success';
+                                    } else {
+                                        // Chưa thanh toán nhưng đơn hàng đang xử lý / đã gửi / pending
+                                        $paymentLabel = 'Chưa thanh toán';
+                                        $paymentClass = 'bg-warning';
+                                    }
+                                @endphp
 
+                                <span class="badge {{ $paymentClass }}">
+                                    {{ $paymentLabel }}
+                                </span>
                             </div>
-                            <div class="col-md-6">
-                                <h6 class="text-muted">Ngày tạo</h6>
-                                <p class="fw-bold">{{ $order->created_at->format('d/m/Y H:i') }}</p>
+
+                            <div class="col-md-6 text-md-end">
+                                <h6 class="text-muted">Ngày tạo đơn hàng</h6>
+                                <p class="fw-bold mb-0">{{ $order->created_at->format('d/m/Y H:i') }}</p>
                             </div>
                         </div>
+
+
+
 
                         <div class="row text-center">
                             <div class="col-md-4">
