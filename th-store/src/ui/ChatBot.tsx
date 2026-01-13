@@ -58,18 +58,24 @@ export default function ChatBot() {
             const history = res.data.map((m: any) => ({
                 id: m.id.toString(),
                 text: m.content,
-                sender: m.sender_id === user?.id ? 'user' : 'admin',
+                sender: m.sender_id === user?.id ? 'user' : (m.is_bot ? 'bot' : 'admin'),
                 timestamp: new Date(m.created_at)
             }));
 
             if (history.length > 0) {
-                // Giữ lại tin nhắn chào mừng đầu tiên nếu muốn, hoặc thay thế hoàn toàn
+                const hasAdminMessage = history.some((m: any) => m.sender === 'admin');
+                const firstMsgDate = history[0].timestamp instanceof Date && !isNaN(history[0].timestamp.getTime())
+                    ? history[0].timestamp
+                    : new Date();
+
                 setMessages([
                     {
                         id: 'initial',
-                        text: 'Chào bạn! Tôi là trợ lý của TH Store. Bạn có thể chat với AI hoặc đợi Admin trả lời nhé.',
+                        text: hasAdminMessage
+                            ? 'Chào mừng bạn quay lại! Admin sẽ hỗ trợ bạn ngay khi có thể.'
+                            : 'Chào bạn! Tôi là trợ lý của TH Store. Bạn có thể chat với AI hoặc đợi Admin trả lời nhé.',
                         sender: 'bot',
-                        timestamp: history[0] ? new Date(history[0].timestamp.getTime() - 1000) : new Date()
+                        timestamp: new Date(firstMsgDate.getTime() - 1000)
                     },
                     ...history
                 ]);
@@ -100,21 +106,24 @@ export default function ChatBot() {
                 message: currentInput
             });
 
-            // Nếu không dùng polling thì cập nhật cục bộ tin nhắn bot
-            const botMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                text: response.data.reply,
-                sender: 'bot',
-                timestamp: new Date()
-            };
+            // Nếu chatbot trả về reply thì mới hiển thị
+            if (response.data.reply) {
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: response.data.reply,
+                    sender: 'bot',
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, botMsg]);
+            }
 
-            setMessages(prev => [...prev, botMsg]);
+            // Fetch history in background if user is logged in
+            if (user) {
+                setTimeout(fetchHistory, 500);
+            }
 
-            // Nếu có user thì fetch lại phát cuối cho chắc đồng bộ
-            if (user) fetchHistory();
-
-        } catch (error) {
-            console.error('Chat Error:', error);
+        } catch (error: any) {
+            console.error('Chat Error Details:', error?.response?.data || error.message);
             // Nếu chưa đăng nhập thì vẫn cho chat với bot bình thường (state-less)
             toast.error('Có lỗi xảy ra khi gửi tin nhắn.');
         } finally {

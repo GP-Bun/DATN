@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../api/api';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../store/AuthContext';
 
 interface Conversation {
     id: number;
@@ -24,9 +25,11 @@ interface Message {
     content: string;
     created_at: string;
     read_at: string | null;
+    is_bot: boolean | number;
 }
 
 export default function ChatSupport() {
+    const { user: currentUser } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -183,66 +186,70 @@ export default function ChatSupport() {
                             <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: '#f3f4f6' }}>
                                 {messages.map((msg, index) => {
                                     const currentConv = conversations.find(c => c.id === selectedId);
-                                    // Use loose equality or explicit conversion to handle potential string/number mismatches from API
-                                    const isIncoming = currentConv && (Number(msg.sender_id) === Number(currentConv.user_id)); // Message from Customer
+
+                                    // isFromStore: Tin nhắn của Shop (Bot hoặc Admin) -> Phải
+                                    // Quy tắc: Nếu là bot HOẶC sender KHÔNG PHẢI là khách hàng -> Phải
+                                    const isFromStore = msg.is_bot || (currentConv && Number(msg.sender_id) !== Number(currentConv.user_id));
+                                    const isMine = isFromStore;
+
                                     const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
 
                                     return (
                                         <div
                                             key={msg.id}
                                             style={{
-                                                alignSelf: isIncoming ? 'flex-start' : 'flex-end',
+                                                alignSelf: isMine ? 'flex-end' : 'flex-start',
                                                 display: 'flex',
-                                                flexDirection: isIncoming ? 'row' : 'row-reverse',
-                                                alignItems: 'flex-end',
-                                                gap: '8px',
-                                                maxWidth: '80%'
+                                                flexDirection: 'column',
+                                                alignItems: isMine ? 'flex-end' : 'flex-start',
+                                                maxWidth: '85%'
                                             }}
                                         >
-                                            {/* Avatar */}
-                                            <div style={{
-                                                width: '32px',
-                                                height: '32px',
-                                                borderRadius: '50%',
-                                                background: isIncoming ? '#e5e7eb' : '#3b82f6',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontSize: '12px',
-                                                fontWeight: 'bold',
-                                                color: isIncoming ? '#6b7280' : 'white',
-                                                flexShrink: 0,
-                                                opacity: showAvatar ? 1 : 0 // Preserve space if grouped
-                                            }}>
-                                                {isIncoming
-                                                    ? (currentConv?.user?.name?.charAt(0).toUpperCase() || 'C')
-                                                    : 'A' // Admin
-                                                }
-                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: isMine ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: '8px' }}>
+                                                {/* Avatar (Optional for Admin but kept for consistency) */}
+                                                <div style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '50%',
+                                                    background: !isMine ? '#cbd5e1' : (msg.is_bot ? '#10b981' : '#667eea'),
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '10px',
+                                                    fontWeight: 'bold',
+                                                    color: 'white',
+                                                    flexShrink: 0,
+                                                    opacity: showAvatar ? 1 : 0
+                                                }}>
+                                                    {!isMine
+                                                        ? (currentConv?.user?.name?.charAt(0).toUpperCase() || 'C')
+                                                        : (msg.is_bot ? 'AI' : 'A')
+                                                    }
+                                                </div>
 
-                                            {/* Message Bubble */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isIncoming ? 'flex-start' : 'flex-end' }}>
-                                                {showAvatar && (
-                                                    <span style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px', marginLeft: isIncoming ? '4px' : 0, marginRight: !isIncoming ? '4px' : 0 }}>
-                                                        {isIncoming ? currentConv?.user?.name : 'Bạn'}
-                                                    </span>
-                                                )}
                                                 <div style={{
                                                     padding: '12px 16px',
-                                                    borderRadius: isIncoming ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
-                                                    background: isIncoming ? 'white' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                                                    color: isIncoming ? '#1f2937' : 'white',
-                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                    borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                                                    background: isMine ? (msg.is_bot ? '#10b981' : '#667eea') : '#f1f5f9',
+                                                    color: isMine ? 'white' : '#1e293b',
                                                     fontSize: '14px',
                                                     lineHeight: '1.5',
-                                                    position: 'relative',
-                                                    border: isIncoming ? '1px solid #e5e7eb' : 'none'
+                                                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                                                    border: 'none'
                                                 }}>
                                                     {msg.content}
                                                 </div>
-                                                <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px', opacity: 0.8 }}>
-                                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
+                                            </div>
+
+                                            <div style={{
+                                                fontSize: '10px',
+                                                color: '#94a3b8',
+                                                marginTop: '4px',
+                                                marginLeft: !isMine ? '36px' : 0,
+                                                marginRight: isMine ? '4px' : 0
+                                            }}>
+                                                {!isMine ? `Khách | ` : (msg.is_bot ? 'AI Assistant | ' : 'Bạn | ')}
+                                                {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </div>
                                     );

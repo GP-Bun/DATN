@@ -16,15 +16,18 @@ class ChatBotController extends Controller
         $request->validate(['message' => 'required|string']);
         $userMessage = $request->input('message');
         $loweredMsg = mb_strtolower($userMessage);
-        $user = $request->user();
+        $user = $request->user() ?? auth('sanctum')->user();
 
-        // 1. Kiểm tra Admin thực sự (Human) có đang chat không
+        // 1. Kiểm tra nếu ĐẨN ĐÃ TỪNG có Admin thực sự (Human) nhắn tin không
         $adminTakingOver = false;
         $conversation = null;
         $adminId = 1;
 
         if ($user) {
-            $admin = \App\Models\User::where('role', 'admin')->first() ?? \App\Models\User::first();
+            // Tìm admin thực sự, nếu không có thì lấy đại một account không phải của user
+            $admin = \App\Models\User::where('role', 'admin')->first() 
+                     ?? \App\Models\User::where('id', '!=', $user->id)->first()
+                     ?? \App\Models\User::first();
             $adminId = $admin ? $admin->id : 1;
             
             $conversation = \App\Models\Conversation::firstOrCreate(
@@ -32,28 +35,37 @@ class ChatBotController extends Controller
                 ['last_message_at' => now()]
             );
 
-            // Kiểm tra tin nhắn gần nhất (15 phút) từ phía Admin/Support
-            // MÀ KHÔNG PHẢI LÀ BOT (is_bot = 0)
-            $recentHumanMessage = $conversation->messages()
+            // Kiểm tra tin nhắn từ phía Admin/Support MÀ KHÔNG PHẢI LÀ BOT (is_bot = 0)
+            // Nếu đã từng có người thật trả lời, bot sẽ im lặng
+            $hasHumanReply = $conversation->messages()
                 ->where('sender_id', '!=', $user->id) // Tin nhắn không phải của khách
                 ->where('is_bot', 0)                  // VÀ là người thật
-                ->where('created_at', '>', now()->subMinutes(15))
                 ->exists();
 
-            if ($recentHumanMessage) {
+            if ($hasHumanReply) {
                 $adminTakingOver = true;
             }
         }
 
-        // Nếu admin đang chat, lưu tin nhắn user và return luôn (không AI)
+        // Nếu admin đã tiếp quản, lưu tin nhắn user và return (không AI reply)
         if ($adminTakingOver && $conversation) {
-            $conversation->messages()->create([
+            $userMsg = $conversation->messages()->create([
                 'sender_id' => $user->id,
                 'receiver_id' => $adminId,
                 'content' => $userMessage,
                 'is_bot' => 0
             ]);
-            $conversation->update(['last_message_at' => now()]);
+            $conversation->update([
+                'last_message_at' => now(),
+                'unread_count' => ($conversation->unread_count ?? 0) + 1
+            ]);
+
+            // Vẫn broadcast tin nhắn của user để Admin thấy trong real-time
+            try {
+                broadcast(new \App\Events\MessageSent($userMsg))->toOthers();
+                broadcast(new \App\Events\ConversationUpdated($conversation))->toOthers();
+            } catch (\Throwable $e) {}
+
             return response()->json(['reply' => null, 'status' => 'admin_taking_over']);
         }
 
@@ -94,7 +106,7 @@ class ChatBotController extends Controller
                         $resData = $response->json();
                         $reply = $resData['candidates'][0]['content']['parts'][0]['text'] ?? null;
                     }
-                } catch (\Exception $e) {}
+                } catch (\Throwable $e) {}
             }
         }
 
@@ -124,7 +136,7 @@ class ChatBotController extends Controller
             
             try {
                 broadcast(new \App\Events\MessageSent($replyMessage))->toOthers();
-            } catch (\Exception $e) {}
+            } catch (\Throwable $e) {}
         }
 
         return response()->json(['reply' => $reply]);
