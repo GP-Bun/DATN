@@ -134,6 +134,57 @@ function money($v){
     </div>
   </div>
 
+  {{-- GLOBAL STATS - TOP PRODUCTS --}}
+  @if(!empty($data['globalStats']))
+  <div class="global-stats-section">
+    <div class="global-stats-header">
+      <h2>📊 Thống kê sản phẩm tổng hợp</h2>
+      <div class="global-stats-summary">
+        <span>📦 Tổng đơn: <strong>{{ $data['globalStats']['ordersTotal'] }}</strong></span>
+        <span>✅ Đã thanh toán: <strong>{{ $data['globalStats']['ordersPaidTotal'] }}</strong></span>
+      </div>
+    </div>
+
+    <div class="top-products-grid">
+      {{-- TOP BÁN CHẠY --}}
+      <div class="card top-products-card">
+        <h3>🔥 Top sản phẩm bán chạy</h3>
+        <ul class="product-rank-list">
+          @forelse($data['globalStats']['topBestProducts'] ?? [] as $i => $product)
+            <li class="product-rank-item {{ $i === 0 ? 'gold' : ($i === 1 ? 'silver' : ($i === 2 ? 'bronze' : '')) }}">
+              <div class="rank-badge">{{ $i + 1 }}</div>
+              <div class="product-info">
+                <span class="product-name" title="{{ $product['name'] }}">{{ \Illuminate\Support\Str::limit($product['name'], 35) }}</span>
+                <span class="product-sold">Đã bán: <strong>{{ $product['total_sold'] }}</strong></span>
+              </div>
+            </li>
+          @empty
+            <li class="empty-state">Chưa có dữ liệu bán hàng</li>
+          @endforelse
+        </ul>
+      </div>
+
+      {{-- TOP KHÔNG BÁN CHẠY --}}
+      <div class="card top-products-card">
+        <h3>❄️ Sản phẩm cần cải thiện</h3>
+        <ul class="product-rank-list worst">
+          @forelse($data['globalStats']['topWorstProducts'] ?? [] as $i => $product)
+            <li class="product-rank-item">
+              <div class="rank-badge cold">{{ $i + 1 }}</div>
+              <div class="product-info">
+                <span class="product-name" title="{{ $product['name'] }}">{{ \Illuminate\Support\Str::limit($product['name'], 35) }}</span>
+                <span class="product-sold cold">Đã bán: <strong>{{ $product['total_sold'] }}</strong></span>
+              </div>
+            </li>
+          @empty
+            <li class="empty-state">Không có dữ liệu</li>
+          @endforelse
+        </ul>
+      </div>
+    </div>
+  </div>
+  @endif
+
 </div>
 <script>
 const chartData = @json($data['chart']);
@@ -288,6 +339,153 @@ renderChart('daily7');
   color: #374151;
   font-weight: 600;
   text-align: center;
+}
+
+/* GLOBAL STATS - TOP PRODUCTS */
+.global-stats-section {
+  margin-top: 30px;
+}
+
+.global-stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.global-stats-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.global-stats-summary {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.global-stats-summary strong {
+  color: #4f46e5;
+}
+
+.top-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.top-products-card {
+  padding: 20px;
+}
+
+.top-products-card h3 {
+  margin-bottom: 15px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.product-rank-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.product-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background: #f8fafc;
+  transition: all 0.2s;
+}
+
+.product-rank-item:hover {
+  background: #f1f5f9;
+  transform: translateX(5px);
+}
+
+.product-rank-item.gold {
+  background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+  border: 2px solid #facc15;
+}
+
+.product-rank-item.silver {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 2px solid #94a3b8;
+}
+
+.product-rank-item.bronze {
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+  border: 2px solid #f97316;
+}
+
+.rank-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.rank-badge.cold {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+.product-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-sold {
+  font-size: 0.8rem;
+  color: #10b981;
+}
+
+.product-sold.cold {
+  color: #ef4444;
+}
+
+.product-sold strong {
+  font-weight: 700;
+}
+
+.product-rank-list.worst .product-rank-item {
+  background: #fef2f2;
+}
+
+.product-rank-list.worst .product-rank-item:hover {
+  background: #fee2e2;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #9ca3af;
+  font-style: italic;
 }
 </style>
 

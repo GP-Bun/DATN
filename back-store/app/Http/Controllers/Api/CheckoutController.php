@@ -12,6 +12,7 @@ use App\Models\Coupon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use App\Services\VnPayService;
 
 class CheckoutController extends Controller
 {
@@ -163,11 +164,11 @@ class CheckoutController extends Controller
                     if (Schema::hasColumn('order_items', 'product_id')) {
                         $orderItemData['product_id'] = $cartItem->product_id;
                     }
-                    
+
                     if ($cartItem->variant_id && Schema::hasColumn('order_items', 'variant_id')) {
                         $orderItemData['variant_id'] = $cartItem->variant_id;
                     }
-                    
+
                     if (Schema::hasColumn('order_items', 'total')) {
                         $orderItemData['total'] = $lineTotal;
                     }
@@ -188,7 +189,7 @@ class CheckoutController extends Controller
             if ($request->coupon_code) {
                 // Tìm coupon (case insensitive)
                 $coupon = Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($request->coupon_code))])->first();
-                
+
                 if (!$coupon) {
                     throw new \Exception('Mã giảm giá không tồn tại');
                 }
@@ -221,7 +222,7 @@ class CheckoutController extends Controller
                 // Tính số tiền giảm
                 $discount = $coupon->calculateDiscount($total);
                 $couponId = $coupon->id;
-                
+
                 // Tăng số lần sử dụng
                 $coupon->increment('used_count');
             }
@@ -236,7 +237,7 @@ class CheckoutController extends Controller
             ]);
 
             // Xóa các sản phẩm đã chọn khỏi giỏ hàng
-            // CHỈ XOÁ NGAY NẾU LÀ COD. Với chuyển khoản, sản phẩm sẽ ở lại giỏ cho đến khi thanh toán thành công 
+            // CHỈ XOÁ NGAY NẾU LÀ COD. Với chuyển khoản, sản phẩm sẽ ở lại giỏ cho đến khi thanh toán thành công
             // hoặc người dùng chủ động xoá, để tránh mất hàng khi chưa thanh toán xong.
             if ($request->payment_method === 'cod') {
                 if ($request->has('cart_item_ids') && !empty($request->cart_item_ids)) {
@@ -250,7 +251,7 @@ class CheckoutController extends Controller
 
             // Load order với relationships
             $order = $order->load(['items.product','items.variant','address','coupon']);
-            
+
             // Format image URLs cho products trong order items
             $order->items->each(function ($item) {
                 if ($item->product) {
@@ -275,13 +276,13 @@ class CheckoutController extends Controller
                 $bankAccount = "123456789";
                 $bankName    = "Vietcombank";
                 $accountName = "CONG TY TNHH THUONG MAI";
-                
+
                 // Tạo QR code data theo chuẩn VietQR
                 $qrData = "2|99|{$bankAccount}|{$finalAmount}|Thanh toan don hang #{$order->id}|{$accountName}";
-                
+
                 // Tạo URL QR code image (sử dụng API online)
                 $qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrData);
-                
+
                 $response['qr_code'] = [
                     'data' => $qrData,
                     'image_url' => $qrCodeUrl,
@@ -290,6 +291,22 @@ class CheckoutController extends Controller
                     'account_name' => $accountName,
                     'amount' => $finalAmount,
                     'order_id' => $order->id
+                ];
+            }
+
+            // Nếu là VNPay, tạo URL thanh toán
+            if ($request->payment_method === 'vnpay') {
+                $ipAddr = $request->header('x-forwarded-for') ?? $request->ip();
+                $result = VnPayService::createPaymentUrl(
+                    $order->id,
+                    $finalAmount,
+                    $ipAddr
+                );
+
+                $response['vnpay'] = [
+                    'payment_url' => $result['payment_url'],
+                    'txn_ref'     => $result['txn_ref'],
+                    'amount'      => $result['amount'],
                 ];
             }
 

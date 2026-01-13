@@ -101,6 +101,11 @@ class DashboardController extends Controller
                 if (!empty($serviceData['quickStats'])) {
                     $data['quickStats'] = array_merge($data['quickStats'], $serviceData['quickStats']);
                 }
+
+                // Global Stats - Top sản phẩm
+                if (!empty($serviceData['globalStats'])) {
+                    $data['globalStats'] = $serviceData['globalStats'];
+                }
             }
         } catch (\Throwable $e) {
             Log::error('Dashboard error: ' . $e->getMessage());

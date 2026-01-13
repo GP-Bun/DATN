@@ -25,8 +25,9 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ChatBotController;
 use App\Http\Controllers\Api\VnPayController;
 
-Route::post('/vnpay/create', [VnpayController::class, 'create']); 
-Route::get('/vnpay/return', [VnpayController::class, 'return']);
+Route::post('/vnpay/create', [VnPayController::class, 'create']);
+Route::get('/vnpay/return', [VnPayController::class, 'return']);
+Route::get('/vnpay/ipn', [VnPayController::class, 'ipn']);
 
 // Route::get('/home', [HomeController::class, 'index']);
 Route::get('/geo-tree', function () {

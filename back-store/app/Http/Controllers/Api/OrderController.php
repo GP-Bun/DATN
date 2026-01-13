@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Activity;
 use App\Models\Address;
 use App\Http\Resources\OrderResource;
+use App\Services\VnPayService;
 
 class OrderController extends Controller
 {
@@ -130,7 +131,7 @@ class OrderController extends Controller
         // Nếu hợp lệ thì mới tạo đơn
         return DB::transaction(function () use ($request) {
             $userId = $request->user()->id;
-            
+
             // Nếu có address_id thì ưu tiên dùng, nếu không thì tìm hoặc tạo mới (tránh trùng lặp)
             if ($request->filled('address_id')) {
                 $addressId = $request->address_id;
@@ -216,14 +217,14 @@ class OrderController extends Controller
 
             if ($request->coupon_code) {
                 $coupon = \App\Models\Coupon::whereRaw('LOWER(code) = ?', [strtolower(trim($request->coupon_code))])->first();
-                
+
                 if ($coupon && $coupon->active) {
                     $now = now();
-                    if ((!$coupon->starts_at || $now->gte($coupon->starts_at)) && 
+                    if ((!$coupon->starts_at || $now->gte($coupon->starts_at)) &&
                         (!$coupon->ends_at || $now->lte($coupon->ends_at)) &&
                         (!$coupon->usage_limit || $coupon->used_count < $coupon->usage_limit) &&
                         (!$coupon->min_order_amount || $total >= $coupon->min_order_amount)) {
-                        
+
                         $discount = $coupon->calculateDiscount($total);
                         $couponId = $coupon->id;
                         $coupon->increment('used_count');
@@ -261,13 +262,13 @@ class OrderController extends Controller
                 return response()->json([
                     'message' => 'Đặt hàng thành công! Thanh toán khi nhận hàng.',
                     'order'   => $order,
-                    'data'    => $order 
+                    'data'    => $order
                 ]);
             } elseif ($order->payment_method === 'bank_transfer') {
                 $bankAccount = "123456789";
                 $bankName    = "Vietcombank";
                 $accountName = "CONG TY TNHH THUONG MAI";
-                
+
                 $qrDataString = "2|99|{$bankAccount}|{$order->final_amount}|Thanh toan don hang #{$order->id}|{$accountName}";
                 $qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrDataString);
 
@@ -291,11 +292,23 @@ class OrderController extends Controller
                     ]
                 ]);
             } else {
-                // vnpay hoặc các phương thức online khác
+                // vnpay - tạo URL thanh toán
+                $ipAddr = $request->header('x-forwarded-for') ?? $request->ip();
+                $result = VnPayService::createPaymentUrl(
+                    $order->id,
+                    $order->final_amount,
+                    $ipAddr
+                );
+
                 return response()->json([
-                    'message' => 'Đơn hàng đã được tạo. Đang chuyển hướng đến trang thanh toán...',
+                    'message' => 'Đang chuyển hướng đến trang thanh toán VNPay...',
                     'order'   => $order,
-                    'data'    => $order
+                    'data'    => $order,
+                    'vnpay'   => [
+                        'payment_url' => $result['payment_url'],
+                        'txn_ref'     => $result['txn_ref'],
+                        'amount'      => $result['amount'],
+                    ]
                 ]);
             }
         });

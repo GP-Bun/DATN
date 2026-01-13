@@ -158,6 +158,44 @@ class DashboardService
         $minMonthRevenue = $monthTotals->min() ?? 0;
 
         /** ===============================
+         * GLOBAL STATS - TOP SẢN PHẨM TẤT CẢ THỜI GIAN
+         * =============================== */
+        // Tổng số đơn hàng tất cả thời gian
+        $ordersTotal = DB::table('orders')->count();
+        // Tổng số đơn đã thanh toán
+        $ordersPaidTotal = DB::table('orders')->where('payment_status', 'paid')->count();
+
+        // Top sản phẩm bán chạy nhất (có qty > 0)
+        $topBestProducts = DB::table('order_items')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->select('products.id', 'products.name', DB::raw('SUM(order_items.quantity) as total_sold'))
+            ->groupBy('products.id', 'products.name')
+            ->having('total_sold', '>', 0)
+            ->orderByDesc('total_sold')
+            ->limit(5)
+            ->get()
+            ->map(fn ($p) => [
+                'id'         => $p->id,
+                'name'       => $p->name,
+                'total_sold' => (int) $p->total_sold,
+            ]);
+
+        // Top sản phẩm không bán chạy (bán ít nhất hoặc không bán)
+        $topWorstProducts = DB::table('products')
+            ->leftJoin('order_items', 'products.id', '=', 'order_items.product_id')
+            ->select('products.id', 'products.name', DB::raw('COALESCE(SUM(order_items.quantity), 0) as total_sold'))
+            ->whereNull('products.deleted_at')
+            ->groupBy('products.id', 'products.name')
+            ->orderBy('total_sold')
+            ->limit(5)
+            ->get()
+            ->map(fn ($p) => [
+                'id'         => $p->id,
+                'name'       => $p->name,
+                'total_sold' => (int) $p->total_sold,
+            ]);
+
+        /** ===============================
          * RETURN DATA
          * =============================== */
         return [
@@ -199,6 +237,12 @@ class DashboardService
                     : 0,
                 'maxMonth' => $maxMonthRevenue,
                 'minMonth' => $minMonthRevenue,
+            ],
+            'globalStats' => [
+                'ordersTotal' => $ordersTotal,
+                'ordersPaidTotal' => $ordersPaidTotal,
+                'topBestProducts' => $topBestProducts,
+                'topWorstProducts' => $topWorstProducts,
             ],
         ];
     }
