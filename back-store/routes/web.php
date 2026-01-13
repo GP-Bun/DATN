@@ -152,4 +152,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:admin', 'role:admin,st
     Route::delete('chat/{id}', [ChatController::class, 'destroy'])
         ->name('chat.destroy')
         ->middleware('permission:chat_support');
+
+    // 🔥 API load danh sách
+    Route::get('chat/conversations', [ChatController::class, 'conversations'])
+        ->middleware('permission:chat_support');
+
+    // ✅ Đánh dấu đã đọc
+    Route::post('chat/{id}/read', [ChatController::class, 'markAsRead'])
+        ->middleware('permission:chat_support');
 });
