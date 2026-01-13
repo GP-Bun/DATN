@@ -16,4 +16,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor response để xử lý lỗi 401 (Unauthorized)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Xóa token khi token hết hạn hoặc không hợp lệ
+      localStorage.removeItem("user_token");
+      sessionStorage.removeItem("user_token");
+      // Chỉ redirect nếu đang ở trang cần authentication
+      if (window.location.pathname !== '/dang-nhap' && window.location.pathname !== '/dang-ky') {
+        window.location.href = '/dang-nhap';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

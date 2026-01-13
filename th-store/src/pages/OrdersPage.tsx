@@ -58,27 +58,37 @@ userApi.interceptors.request.use((config) => {
 });
 
 export default function OrdersPage() {
-    const { user } = useAuth()
+    const { user, loading: authLoading } = useAuth()
     const navigate = useNavigate()
     const [orders, setOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(true)
     const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
 
     useEffect(() => {
+        // Chờ auth loading hoàn thành trước khi kiểm tra user
+        if (authLoading) {
+            return
+        }
+        
         if (!user) {
             navigate('/dang-nhap')
             return
         }
         loadOrders()
-    }, [user])
+    }, [user, authLoading, navigate])
 
     const loadOrders = async () => {
         try {
             setLoading(true)
             const res = await userApi.get('/orders')
             setOrders(res.data)
-        } catch (err) {
+        } catch (err: any) {
             console.error('Lỗi tải đơn hàng:', err)
+            // Nếu lỗi 401, interceptor sẽ tự động xử lý redirect
+            // Nếu là lỗi khác, chỉ hiển thị thông báo
+            if (err.response?.status !== 401) {
+                toast.error('Không thể tải danh sách đơn hàng. Vui lòng thử lại.')
+            }
         } finally {
             setLoading(false)
         }
@@ -157,7 +167,8 @@ export default function OrdersPage() {
         return statusMap[status] || status
     }
 
-    if (loading) {
+    // Hiển thị loading nếu đang tải auth hoặc đang tải đơn hàng
+    if (authLoading || loading) {
         return (
             <div className="main" style={{ textAlign: "center", padding: "100px" }}>
                 <p>Đang tải đơn hàng...</p>

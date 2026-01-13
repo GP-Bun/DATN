@@ -64,6 +64,7 @@ export default function CheckoutPage() {
   const [qrData, setQrData] = useState<any>(null)
   const [currentOrder, setCurrentOrder] = useState<any>(null)
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false)
 
   // Address selection state
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
@@ -268,7 +269,7 @@ export default function CheckoutPage() {
       province_id: selectedProvince?.id,
       district_id: selectedDistrict?.id,
       ward_id: selectedWard?.id,
-      payment_method: formData.paymentMethod as 'bank_transfer' | 'cod' | 'vnpay'
+      payment_method: formData.paymentMethod as 'bank_transfer' | 'cod'
     }
 
     // Thêm coupon_code nếu có
@@ -334,69 +335,27 @@ export default function CheckoutPage() {
         throw new Error('Không nhận được dữ liệu đơn hàng từ server')
       }
 
-      if (formData.paymentMethod === 'vnpay') {
-        // VNPay Flow
-        try {
-          const vnpayRes = await api.post('/vnpay/create', { order_id: order.id });
+      // Xử lý theo phương thức thanh toán
+      if (formData.paymentMethod === 'bank_transfer') {
+        // Chuyển khoản ngân hàng - hiển thị QR code
+        if (response.qr_code) {
+          setQrData(response.qr_code);
+          setCurrentOrder(order);
+          setShowQRModal(true);
+          setIsCheckingPayment(true);
           
-          // Check response structure
-          if (vnpayRes.data) {
-            // Handle both response formats: { payment_url } or { data: { payment_url } }
-            const paymentUrl = vnpayRes.data.payment_url || vnpayRes.data.data?.payment_url;
-            
-            if (paymentUrl) {
-              // Clear local storage and cart before redirecting
-              if (!buyNowItem) {
-                await reloadCart()
-              }
-              localStorage.removeItem("applied_coupon");
-              localStorage.removeItem("coupon_discount");
-              localStorage.removeItem("coupon_code");
-
-              // Redirect to VNPay
-              window.location.href = paymentUrl;
-            } else {
-              // Check if there's an error message from backend
-              const errorMsg = vnpayRes.data.message || 'Không lấy được link thanh toán VNPay';
-              throw new Error(errorMsg);
-            }
-          } else {
-            throw new Error('Không nhận được phản hồi từ server');
+          // Clear cart và coupon
+          if (!buyNowItem) {
+            await reloadCart()
           }
-        } catch (vnpayErr: any) {
-          console.error('VNPay error:', vnpayErr);
-          
-          // Extract error message
-          let errorMessage = 'Lỗi khởi tạo thanh toán VNPay. Vui lòng thử lại.';
-          
-          if (vnpayErr?.response?.data?.message) {
-            errorMessage = vnpayErr.response.data.message;
-            
-            // Nếu có missing_config, hiển thị chi tiết hơn
-            if (vnpayErr.response.data.missing_config && Array.isArray(vnpayErr.response.data.missing_config)) {
-              const missing = vnpayErr.response.data.missing_config.join(', ');
-              errorMessage += `\n\nThiếu cấu hình: ${missing}`;
-            }
-          } else if (vnpayErr?.message) {
-            errorMessage = vnpayErr.message;
-          }
-          
-          // Hiển thị lỗi với thời gian dài hơn để người dùng đọc được
-          toast.error(errorMessage, {
-            duration: 6000,
-            style: {
-              maxWidth: '500px',
-              whiteSpace: 'pre-line'
-            }
-          });
-          
-          // Reset submitting state
-          setIsSubmitting(false);
-          
-          // Don't navigate away - let user try again or choose different payment method
+          localStorage.removeItem("applied_coupon");
+          localStorage.removeItem("coupon_discount");
+          localStorage.removeItem("coupon_code");
+        } else {
+          throw new Error('Không tạo được QR code thanh toán');
         }
       } else {
-        // Success logic for COD
+        // COD - chuyển đến trang thành công
         if (!buyNowItem) {
           await reloadCart()
         }
@@ -1023,7 +982,6 @@ export default function CheckoutPage() {
               >
                 <option value="cod">Thanh toán khi nhận hàng (COD)</option>
                 <option value="bank_transfer">Chuyển khoản ngân hàng</option>
-                <option value="vnpay">Thanh toán qua VNPay</option>
               </select>
             </div>
 
@@ -1468,6 +1426,60 @@ export default function CheckoutPage() {
               )}
 
               <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={async () => {
+                    if (!currentOrder?.id) return;
+                    
+                    setIsConfirmingPayment(true);
+                    try {
+                      const response = await api.post(`/orders/${currentOrder.id}/confirm-payment`, {
+                        transaction_id: `QR_${Date.now()}`
+                      });
+                      
+                      toast.success('Xác nhận thanh toán thành công!');
+                      setShowQRModal(false);
+                      setIsCheckingPayment(false);
+                      setIsConfirmingPayment(false);
+                      
+                      // Lấy đơn hàng đã cập nhật từ response
+                      const updatedOrder = response.data?.order || currentOrder;
+                      
+                      // Chuyển đến trang thành công
+                      navigate('/dat-hang-thanh-cong', {
+                        state: { order: updatedOrder }
+                      });
+                    } catch (err: any) {
+                      console.error('Lỗi xác nhận thanh toán:', err);
+                      toast.error(err?.response?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán');
+                      setIsConfirmingPayment(false);
+                    }
+                  }}
+                  disabled={isConfirmingPayment}
+                  style={{
+                    flex: 1,
+                    padding: "12px 24px",
+                    background: isConfirmingPayment ? "#9ca3af" : "#10b981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    cursor: isConfirmingPayment ? "not-allowed" : "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isConfirmingPayment) {
+                      e.currentTarget.style.background = "#059669";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isConfirmingPayment) {
+                      e.currentTarget.style.background = "#10b981";
+                    }
+                  }}
+                >
+                  {isConfirmingPayment ? "Đang xử lý..." : "Thanh toán thành công"}
+                </button>
 
                 <button
                   onClick={() => {

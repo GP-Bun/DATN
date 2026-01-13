@@ -38,6 +38,23 @@ userApi.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor response để xử lý lỗi 401 (Unauthorized)
+userApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Xóa token và user state khi token hết hạn hoặc không hợp lệ
+      localStorage.removeItem("user_token");
+      sessionStorage.removeItem("user_token");
+      // Chỉ redirect nếu đang ở trang cần authentication
+      if (window.location.pathname !== '/dang-nhap' && window.location.pathname !== '/dang-ky') {
+        window.location.href = '/dang-nhap';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Interceptor admin token
 adminApi.interceptors.request.use((config) => {
   const token = localStorage.getItem("admin_token");
