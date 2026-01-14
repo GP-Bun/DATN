@@ -269,7 +269,7 @@ export default function CheckoutPage() {
       province_id: selectedProvince?.id,
       district_id: selectedDistrict?.id,
       ward_id: selectedWard?.id,
-      payment_method: formData.paymentMethod as 'bank_transfer' | 'cod'
+      payment_method: formData.paymentMethod as 'bank_transfer' | 'cod' | 'vnpay'
     }
 
     // Thêm coupon_code nếu có
@@ -333,6 +333,21 @@ export default function CheckoutPage() {
 
       if (!order) {
         throw new Error('Không nhận được dữ liệu đơn hàng từ server')
+      }
+
+      // Xử lý VNPay - redirect trước khi xử lý khác
+      if (formData.paymentMethod === 'vnpay' && response.vnpay?.payment_url) {
+        // Clear cart và coupon trước khi redirect
+        if (!buyNowItem) {
+          await reloadCart()
+        }
+        localStorage.removeItem("applied_coupon");
+        localStorage.removeItem("coupon_discount");
+        localStorage.removeItem("coupon_code");
+        
+        // Redirect đến VNPay
+        window.location.href = response.vnpay.payment_url;
+        return;
       }
 
       // Xử lý theo phương thức thanh toán
@@ -982,6 +997,7 @@ export default function CheckoutPage() {
               >
                 <option value="cod">Thanh toán khi nhận hàng (COD)</option>
                 <option value="bank_transfer">Chuyển khoản ngân hàng</option>
+                <option value="vnpay">Thanh toán qua VNPay</option>
               </select>
             </div>
 

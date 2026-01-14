@@ -29,6 +29,11 @@ export interface CheckoutResponse {
     amount: number;
     order_id: number;
   };
+  vnpay?: {
+    payment_url: string;
+    txn_ref: string;
+    amount: number;
+  };
 }
 
 export const checkout = async (payload: CheckoutPayload): Promise<CheckoutResponse> => {
